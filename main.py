@@ -47,13 +47,18 @@ def showFirstPage():
         if subcol3.button("Send to Go server", key='check_ward') :
             if endtime_json_data != None:
                 data = {'sector_id': 6, 'level_name': "B2", 'start_time': starttime_json_data, 'end_time': endtime_json_data}
-                userID = requests.get("http://localhost:8502/", data=json.dumps(data))
+                userID = requests.get("http://localhost:8502/api", data=json.dumps(data))
                 if userID != None:
-                    userID_response = userID.json()
-                    if userID_response["userIDs"] != None:
-                        for_check = userID_response["userIDs"]
-                        for idx in range(len(for_check)):
-                            st.write(for_check[idx])
+                    if 'json' in userID.headers.get('Content-Type'):
+                        userID_response = userID.json()
+                        if userID_response["userIDs"] != None:
+                            for_check = userID_response["userIDs"]
+                            for idx in range(len(for_check)):
+                                st.write(for_check[idx])
+                    else:
+                        print('Response content is not in JSON format.')
+                        js = 'spam'
+
 
     
 
