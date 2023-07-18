@@ -14,45 +14,47 @@ def set_page_title():
 
 @st.cache_data()
 def upload_today_data():
-    current_time = datetime.now()
-    current_time_utc = current_time.astimezone(pytz.utc)
-    current_time_str = current_time_utc.isoformat()
-    current_time_json_data = json.dumps(current_time_str)   
-    data = {'start_time': current_time_json_data, 'sector_id': 6}
-    response_data = requests.get("http://localhost:8502/", data=json.dumps(data))
+    korea_timezone = pytz.timezone('Asia/Seoul')
+    current_time = datetime.now(tz=korea_timezone)
+    current_time_str = current_time.isoformat()
+    current_time_json_data = json.dumps(current_time_str)
+    # data = {'start_time': current_time_json_data, 'sector_id': 6}
+    # response_data = requests.get("http://localhost:8502/", data=json.dumps(data))
 
-    if response_data.status_code == 200:
-        response_data = response_data.json()
-        realtime_stat = response_data['currentStats']
-        cumulative_data_count = realtime_stat['total_data']
-        correction_rate = 100 - realtime_stat['threshold_10'] - realtime_stat['threshold_30'] - realtime_stat['threshold_50']
+    # if response_data.status_code == 200:
+    #     response_data = response_data.json()
+    #     realtime_stat = response_data['currentStats']
+    #     cumulative_data_count = realtime_stat['total_data']
+    #     correction_rate = 100 - realtime_stat['threshold_10'] - realtime_stat['threshold_30'] - realtime_stat['threshold_50']
 
-        st.header("Daily Status")
-        col1, col2, col3 = st.columns(3)
+    st.header("Daily Status")
+    col1, col2, col3 = st.columns(3)
 
-        if 'count' not in st.session_state:
-            st.session_state['count'] = cumulative_data_count
-        if 'rate' not in st.session_state:
-            st.session_state['rate'] = correction_rate
+        # if 'count' not in st.session_state:
+        #     st.session_state['count'] = cumulative_data_count
+        # if 'rate' not in st.session_state:
+        #     st.session_state['rate'] = correction_rate
 
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-        col1.write("latest update time")
-        col1.markdown(f"<span style='font-size: 40px;'>{current_time}</span>", unsafe_allow_html=True)
-        col2.metric("cumulative_data_count", f"{cumulative_data_count} count", f"{cumulative_data_count - st.session_state['count']}count")
-        col3.metric("correction_rate", f"{correction_rate}%", f"{correction_rate - st.session_state['rate']}%")
-        st.session_state['count'] = cumulative_data_count
-        st.session_state['rate'] = correction_rate
+    time_format = '%Y-%m-%dT%H:%M:%S.%f%z'
+
+    datetime_obj = datetime.strptime(current_time_str, time_format)
+    formatted_time = datetime_obj.strftime('%Y-%m-%d %H:%M')
+    col1.write("latest update time")
+    col1.markdown(f"<span style='font-size: 40px;'>{formatted_time}</span>", unsafe_allow_html=True)
+        # col2.metric("cumulative_data_count", f"{cumulative_data_count} count", f"{cumulative_data_count - st.session_state['count']}count")
+        # col3.metric("correction_rate", f"{correction_rate}%", f"{correction_rate - st.session_state['rate']}%")
+        # st.session_state['count'] = cumulative_data_count
+        # st.session_state['rate'] = correction_rate
 
 
-@st.cache_data()
 def save_yesterday_data():
-    current_time = datetime.now()
-    current_time_utc = current_time.astimezone(pytz.utc)
-    current_time_str = current_time_utc.isoformat()
-    current_time_json_data = json.dumps(current_time_str)   
+    korea_timezone = pytz.timezone('Asia/Seoul')
+    current_time = datetime.now(tz=korea_timezone)
+    current_time_str = current_time.isoformat()
+    current_time_json_data = json.dumps(current_time_str)
     data = {'start_time': current_time_json_data}
     response_data = requests.get("http://localhost:8502/save-yesterday", data=json.dumps(data))
-
+    
     if response_data.status_code == 200:
         st.success('Updated until yesterday stats')
 
@@ -65,7 +67,19 @@ def showFirstPage():
     endtime_json_data = None 
     with row4[0]:
         st.markdown("<h3 style='text-align: right; color: black;'>Data retrieval period</h3>", unsafe_allow_html=True)
-        _, subcol1, subcol2, subcol3, subcol4 = st.columns([4,1,1,1,1])
+        time_zone, subcol1, subcol2, subcol3, subcol4 = st.columns([4,1,1,1,1])
+
+        with time_zone:
+            korea_timezone = pytz.timezone('Asia/Seoul')
+            current_time = datetime.now(tz=korea_timezone)
+            current_time_str = current_time.isoformat()
+
+            st.header("Current Time")
+            time_format = '%Y-%m-%dT%H:%M:%S.%f%z'
+
+            datetime_obj = datetime.strptime(current_time_str, time_format)
+            formatted_time = datetime_obj.strftime('%Y-%m-%d %H:%M')
+            st.markdown(f"<span style='font-size: 40px;'>{formatted_time}</span>", unsafe_allow_html=True)
 
         with subcol1 :
             startdate = st.date_input('Select start date')
@@ -157,5 +171,5 @@ def showFirstPage():
 
 if __name__ == '__main__' :
     set_page_title()
-    upload_today_data()
+    # upload_today_data()
     showFirstPage()
