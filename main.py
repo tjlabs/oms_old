@@ -9,43 +9,28 @@ import matplotlib.pyplot as plt
 import altair as alt
 
 def set_page_title():
-    st.set_page_config(page_title="Jupiter Health Check System", page_icon=":desktop_computer:", layout="wide")
+    st.set_page_config(page_title="Jupiter Health Check System", page_icon=":desktop_computer:", 
+                       layout="wide", initial_sidebar_state="expanded")
     st.title(":desktop_computer: Jupiter Health Check System")
+    st.divider()
 
-@st.cache_data()
-def upload_today_data():
-    korea_timezone = pytz.timezone('Asia/Seoul')
-    current_time = datetime.now(tz=korea_timezone)
-    current_time_str = current_time.isoformat()
-    current_time_json_data = json.dumps(current_time_str)
-    # data = {'start_time': current_time_json_data, 'sector_id': 6}
-    # response_data = requests.get("http://localhost:8502/", data=json.dumps(data))
+def set_performance_sidebar():
+    response_data = requests.get("http://localhost:8502/load-tables", data=json.dumps(None))
+    if response_data.status_code == 200:
+        performances = response_data.json()["tables"]
 
-    # if response_data.status_code == 200:
-    #     response_data = response_data.json()
-    #     realtime_stat = response_data['currentStats']
-    #     cumulative_data_count = realtime_stat['total_data']
-    #     correction_rate = 100 - realtime_stat['threshold_10'] - realtime_stat['threshold_30'] - realtime_stat['threshold_50']
+        with st.sidebar:
+            st.sidebar.multiselect(
+                "Please select the performance metrics you would like to see.",
+                performances
+            )
 
-    st.header("Daily Status")
-    col1, col2, col3 = st.columns(3)
+def place_info_container():
+    with st.container():
+        st.header("Selected Place Information")
 
-        # if 'count' not in st.session_state:
-        #     st.session_state['count'] = cumulative_data_count
-        # if 'rate' not in st.session_state:
-        #     st.session_state['rate'] = correction_rate
-
-    time_format = '%Y-%m-%dT%H:%M:%S.%f%z'
-
-    datetime_obj = datetime.strptime(current_time_str, time_format)
-    formatted_time = datetime_obj.strftime('%Y-%m-%d %H:%M')
-    col1.write("latest update time")
-    col1.markdown(f"<span style='font-size: 40px;'>{formatted_time}</span>", unsafe_allow_html=True)
-        # col2.metric("cumulative_data_count", f"{cumulative_data_count} count", f"{cumulative_data_count - st.session_state['count']}count")
-        # col3.metric("correction_rate", f"{correction_rate}%", f"{correction_rate - st.session_state['rate']}%")
-        # st.session_state['count'] = cumulative_data_count
-        # st.session_state['rate'] = correction_rate
-
+        time_zone, sector, building, level, subcol1, subcol2, subcol3, subcol4 = st.columns([1,1,1,1,1,1,1])
+        response_data = requests.get("http://localhost:8502/place-info", data=json.dumps(None))
 
 def save_yesterday_data():
     korea_timezone = pytz.timezone('Asia/Seoul')
@@ -171,5 +156,6 @@ def showFirstPage():
 
 if __name__ == '__main__' :
     set_page_title()
-    # upload_today_data()
+    set_performance_sidebar()
+    place_info_container
     showFirstPage()
