@@ -1,12 +1,12 @@
+from ast import Tuple
+import select
 import streamlit as st
 import time, json, pytz
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import requests
-from datetime import datetime
-import matplotlib.pyplot as plt
-import altair as alt
+from datetime import date, datetime
 
 def set_page_title():
     st.set_page_config(page_title="Jupiter Health Check System", page_icon=":desktop_computer:", 
@@ -18,7 +18,6 @@ def set_performance_sidebar():
     response_data = requests.get("http://localhost:8502/load-tables", data=json.dumps(None))
     if response_data.status_code == 200:
         performances = response_data.json()["tables"]
-
         with st.sidebar:
             st.sidebar.multiselect(
                 "Please select the performance metrics you would like to see.",
@@ -29,26 +28,29 @@ def place_info_container():
     with st.container():
         st.header("Selected Place Information")
 
-        time_zone, sector, building, level, subcol1, subcol2, subcol3, subcol4 = st.columns([1,1,1,1,1,1,1])
+        current_time, sector, building, level, subcol1, subcol2, subcol3, subcol4 = st.columns([1,1,1,1,1,1,1])
         response_data = requests.get("http://localhost:8502/place-info", data=json.dumps(None))
 
-def save_yesterday_data():
+def show_current_time() : 
+    select_time_period = st.columns(1)
+    with select_time_period[0]:
+        st.header("Current Time")
+        current_time_str = datetime.now(tz=pytz.timezone('Asia/Seoul')).isoformat()
+        datetime_obj = datetime.strptime(current_time_str, '%Y-%m-%dT%H:%M:%S.%f%z')
+        formatted_time = datetime_obj.strftime('%Y-%m-%d %H:%M')
+        st.markdown(f"<span style='font-size: 40px;'>{formatted_time}</span>", unsafe_allow_html=True)
+
+def get_current_time():
     current_time = datetime.now(tz=pytz.timezone('Asia/Seoul'))
     current_time_json_data = json.dumps(current_time.isoformat())
-    print("한국시간", current_time_json_data)
+
     if 'yesterday_date' not in st.session_state:
         st.session_state['yesterday_date'] = current_time_json_data
-    get_yesterday_userinfos({'start_time': st.session_state['yesterday_date']})
 
-    data = {'start_time': current_time_json_data, 'user_id': st.session_state['users'], 'device_model': st.session_state['devicemodels']}
-    response_data = requests.get("http://localhost:8502/save-yesterday", data=json.dumps(data))
-    
-    if response_data.status_code == 200:
-        st.success('Updated until yesterday stats')
-        if 'total_count' not in st.session_state:
-            st.session_state['total_count'] = response_data.json()["totalDataCount"]
+    return current_time_json_data
 
-def get_yesterday_userinfos(data: dict[str, str]):
+def get_yesterday_userinfos(current_time_json_data):
+    data = {'start_time': current_time_json_data}
     response_data = requests.get("http://localhost:8502/get-yesterday-user", data=json.dumps(data))
     
     if response_data.status_code == 200:
@@ -59,72 +61,22 @@ def get_yesterday_userinfos(data: dict[str, str]):
             st.session_state['users'] = data["users"]
         if 'devicemodels' not in st.session_state:
             st.session_state['devicemodels'] = data["devices"]
+        if 'total_count' not in st.session_state:
+            st.session_state['total_count'] = response_data.json()["totalDataCount"]
 
-def showFirstPage():
-    row4 = st.columns(1)
-    part1, _ = st.columns([4, 3])
+
+def save_yesterday_data(current_time_json_data):
+    data = {'start_time': current_time_json_data, 'user_id': st.session_state['users'], 'device_model': st.session_state['devicemodels']}
+    response_data = requests.get("http://localhost:8502/save-yesterday", data=json.dumps(data))
+    
+    if response_data.status_code == 200:
+        st.success('Updated until yesterday stats')
+
+def load_webpage(current_time_json_data):
     perf_1, _, _, _, _ = st.columns([1,1,1,1,1])
     placeholder = st.empty()
     chart, line_chart = st.columns([4, 4])
-    endtime_json_data = None 
-    with row4[0]:
-        st.markdown("<h3 style='text-align: right; color: black;'>Data retrieval period</h3>", unsafe_allow_html=True)
-        time_zone, subcol1, subcol2, subcol3, subcol4 = st.columns([4,1,1,1,1])
-
-        with time_zone:
-            korea_timezone = pytz.timezone('Asia/Seoul')
-            current_time = datetime.now(tz=korea_timezone)
-            current_time_str = current_time.isoformat()
-
-            st.header("Current Time")
-            time_format = '%Y-%m-%dT%H:%M:%S.%f%z'
-
-            datetime_obj = datetime.strptime(current_time_str, time_format)
-            formatted_time = datetime_obj.strftime('%Y-%m-%d %H:%M')
-            st.markdown(f"<span style='font-size: 40px;'>{formatted_time}</span>", unsafe_allow_html=True)
-
-        with subcol1 :
-            startdate = st.date_input('Select start date')
-        with subcol2:
-            starttime = st.time_input('Enter start time', key='start_time')
-
-            if starttime:
-                start_datetime = datetime.combine(startdate, starttime)
-                starttime_utc = start_datetime.astimezone(pytz.utc)
-                st.write('Selected time in UTC:', starttime_utc)
-
-                starttime_str = starttime_utc.isoformat()
-                starttime_json_data = json.dumps(starttime_str)
-
-        with subcol3 :
-            enddate = st.date_input('Select end date')
-        with subcol4 :
-            endtime = st.time_input('Enter end time', key='end_time')
-            if endtime:
-                end_datetime = datetime.combine(enddate, endtime)
-                endtime_utc = end_datetime.astimezone(pytz.utc)
-                st.write('Selected time in UTC:', endtime_utc)
-
-                endtime_str = endtime_utc.isoformat()
-                endtime_json_data = json.dumps(endtime_str)     
-
-
-    with part1:
-        if subcol3.button("Send to Go server", key='check_ward') :
-            if endtime_json_data != None:
-                data = {'sector_id': 6, 'start_time': starttime_json_data, 'end_time': endtime_json_data}
-                userID = requests.get("http://localhost:8502/api", data=json.dumps(data))
-                if userID.status_code == 200:
-                    if 'json' in userID.headers.get('Content-Type'):
-                        userID_response = userID.json()
-                        if userID_response["userIDs"] != None:
-                            for_check = userID_response["userIDs"]
-                            for idx in range(len(for_check)):
-                                st.write(for_check[idx])
-                    else:
-                        print('Response content is not in JSON format.')
-                        js = 'spam'
-
+   
     # with perf_1:
     #     data = {'sector_id': 6, 'start_time': starttime_json_data, 'end_time': endtime_json_data}
     #     userID = requests.get("http://localhost:8502/api", data=json.dumps(data))
@@ -135,8 +87,8 @@ def showFirstPage():
         chart_data, loaded_data = None, None
         dates = [0]*30
         with chart:
-            save_yesterday_data()
-            data = {'end_time': endtime_json_data}
+            print("sss", current_time_json_data)
+            data = {'end_time': current_time_json_data}
             response_data = requests.get("http://localhost:8502/performance-statistics", data=json.dumps(data))
             if response_data.status_code == 200:
                 data = response_data.json()
@@ -166,11 +118,11 @@ def showFirstPage():
             tab1, tab2 = st.tabs(["Line Chart", "Loaded Data Histogram"])
             with tab1:
                 st.header("Line Chart")
-                if chart_data.size != 0:
+                if chart_data != None:
                     st.line_chart(data=chart_data, x=None, y=None, width=0, height=500, use_container_width=True)
             with tab2:
                 st.header("Loaded Data Histogram")
-                if loaded_data.size != 0:
+                if loaded_data != None:
                     fig = px.histogram(data_frame=loaded_data, x='Date', y='Count', nbins=30, text_auto=True)
                     st.write(fig)
 
@@ -181,4 +133,8 @@ if __name__ == '__main__' :
     set_page_title()
     set_performance_sidebar()
     # place_info_container
-    showFirstPage()
+    show_current_time()
+    current_time_json_data = get_current_time()
+    get_yesterday_userinfos(current_time_json_data)
+    save_yesterday_data(current_time_json_data)
+    load_webpage(current_time_json_data)
