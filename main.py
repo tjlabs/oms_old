@@ -33,20 +33,37 @@ def place_info_container():
         response_data = requests.get("http://localhost:8502/place-info", data=json.dumps(None))
 
 def save_yesterday_data():
-    korea_timezone = pytz.timezone('Asia/Seoul')
-    current_time = datetime.now(tz=korea_timezone)
-    current_time_str = current_time.isoformat()
-    current_time_json_data = json.dumps(current_time_str)
-    data = {'start_time': current_time_json_data}
+    current_time = datetime.now(tz=pytz.timezone('Asia/Seoul'))
+    current_time_json_data = json.dumps(current_time.isoformat())
+    print("한국시간", current_time_json_data)
+    if 'yesterday_date' not in st.session_state:
+        st.session_state['yesterday_date'] = current_time_json_data
+    get_yesterday_userinfos({'start_time': st.session_state['yesterday_date']})
+
+    data = {'start_time': current_time_json_data, 'user_id': st.session_state['users'], 'device_model': st.session_state['devicemodels']}
     response_data = requests.get("http://localhost:8502/save-yesterday", data=json.dumps(data))
     
     if response_data.status_code == 200:
         st.success('Updated until yesterday stats')
+        if 'total_count' not in st.session_state:
+            st.session_state['total_count'] = response_data.json()["totalDataCount"]
 
+def get_yesterday_userinfos(data: dict[str, str]):
+    response_data = requests.get("http://localhost:8502/get-yesterday-user", data=json.dumps(data))
+    
+    if response_data.status_code == 200:
+        st.success('Loaded yesterday\'s whole users')
+        data = response_data.json()
+        
+        if 'users' not in st.session_state:
+            st.session_state['users'] = data["users"]
+        if 'devicemodels' not in st.session_state:
+            st.session_state['devicemodels'] = data["devices"]
 
 def showFirstPage():
     row4 = st.columns(1)
     part1, _ = st.columns([4, 3])
+    perf_1, _, _, _, _ = st.columns([1,1,1,1,1])
     placeholder = st.empty()
     chart, line_chart = st.columns([4, 4])
     endtime_json_data = None 
@@ -108,6 +125,12 @@ def showFirstPage():
                         print('Response content is not in JSON format.')
                         js = 'spam'
 
+    # with perf_1:
+    #     data = {'sector_id': 6, 'start_time': starttime_json_data, 'end_time': endtime_json_data}
+    #     userID = requests.get("http://localhost:8502/api", data=json.dumps(data))
+    #     st.session_state['yesterday_date']
+
+
     with placeholder.container():
         chart_data, loaded_data = None, None
         dates = [0]*30
@@ -157,5 +180,5 @@ def showFirstPage():
 if __name__ == '__main__' :
     set_page_title()
     set_performance_sidebar()
-    place_info_container
+    # place_info_container
     showFirstPage()
