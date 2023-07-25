@@ -58,6 +58,9 @@ def get_place_datas():
     if response_data.status_code == 200:
         data = response_data.json()
 
+        if 'sectors' not in st.session_state:
+            st.session_state['sectors'] = data["sectors"]
+
         place_info = data["placeInfo"]
         print(place_info)
         sector_list, building_list, level_list = [], [], []
@@ -79,8 +82,7 @@ def get_place_datas():
         print(building_list)
         print(level_list)
 
-        if 'sectors' not in st.session_state:
-            st.session_state['sectors'] = sector_list
+
         if 'buildings' not in st.session_state:
             st.session_state['buildings'] = building_list
         if 'levels' not in st.session_state:
