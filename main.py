@@ -32,61 +32,60 @@ def place_info_container():
 
     get_place_datas()
 
-    with col1:
-        if 'sectors' in st.session_state:
-            sector = st.selectbox('Select sector', st.session_state['sectors'])
-            sector_key = st.session_state['sectors'].index(sector)
-        else:
-            st.selectbox('Select sector', ())
+    if 'place_info' in st.session_state:
+        places = list(st.session_state['place_info'].values())
+        print(places)
 
-    with col2:
-        if 'buildings' in st.session_state and sector_key != -1:
-            building = st.selectbox('Select building', st.session_state['buildings'][sector_key])
-            # building_key = building_list.index(building)
-        else:
-            st.selectbox('Select building')
+    # with col1:
+    #     if 'sectors' in st.session_state:
+    #         sector = st.selectbox('Select sector', st.session_state['sectors'])
+    #         sector_key = st.session_state['sectors'].index(sector)
+    #     else:
+    #         st.selectbox('Select sector', ())
 
-    with col3:
-        if 'levels' in st.session_state and sector_key != -1:
-            level = st.selectbox('Select level', st.session_state['levels'][sector_key])
-            # level_key = level_list.index(level)
-        else:
-            st.selectbox('Select level')
+    # with col2:
+    #     if 'buildings' in st.session_state and sector_key != -1:
+    #         building = st.selectbox('Select building', st.session_state['buildings'][sector_key])
+    #         # building_key = building_list.index(building)
+    #     else:
+    #         st.selectbox('Select building')
+
+    # with col3:
+    #     if 'levels' in st.session_state and sector_key != -1:
+    #         level = st.selectbox('Select level', st.session_state['levels'][sector_key])
+    #         # level_key = level_list.index(level)
+    #     else:
+    #         st.selectbox('Select level')
 
 def get_place_datas():
     response_data = requests.get("http://localhost:8502/place-info")
     if response_data.status_code == 200:
         data = response_data.json()
 
-        if 'sectors' not in st.session_state:
-            st.session_state['sectors'] = data["sectors"]
-
         place_info = data["placeInfo"]
-        print(place_info)
-        sector_list, building_list, level_list = [], [], []
-        for i in range(1, len(place_info)+1):
-            print(place_info[str(i)])
-            print()
-            sector_list.append(place_info[str(i)][0])
-            if len(place_info[str(i)]) > 1:
-                building_list.append(place_info[str(i)][1])
-            else:
-                building_list.append(['None'])
 
-            if len(place_info[str(i)]) > 2:
-                level_list.append(place_info[str(i)][2])
-            else:
-                level_list.append(['None'])
+        # sector_list, building_list, level_list = [], [], []
+        # for i in range(1, len(place_info)+1):
+        #     print(place_info[str(i)])
+        #     print()
+        #     sector_list.append(place_info[str(i)][0])
+        #     if len(place_info[str(i)]) > 1:
+        #         building_list.append(place_info[str(i)][1])
+        #     else:
+        #         building_list.append(['None'])
 
-        print(sector_list)
-        print(building_list)
-        print(level_list)
+        #     if len(place_info[str(i)]) > 2:
+        #         level_list.append(place_info[str(i)][2])
+        #     else:
+        #         level_list.append(['None'])
 
+        if 'place_info' not in st.session_state:
+            st.session_state['place_info'] = place_info
 
-        if 'buildings' not in st.session_state:
-            st.session_state['buildings'] = building_list
-        if 'levels' not in st.session_state:
-            st.session_state['levels'] = level_list
+        # if 'buildings' not in st.session_state:
+        #     st.session_state['buildings'] = building_list
+        # if 'levels' not in st.session_state:
+        #     st.session_state['levels'] = level_list
 
 
 @st.cache_data
