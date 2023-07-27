@@ -3,6 +3,7 @@ import json, pytz
 import requests
 from datetime import datetime
 from modules.plot import plot_charts
+from utils import data_requests, use_dict
 
 def set_page_title():
     st.set_page_config(page_title="Jupiter Health Check System", page_icon=":desktop_computer:", 
@@ -10,82 +11,90 @@ def set_page_title():
     st.title(":desktop_computer: Jupiter Health Check System")
     st.divider()
 
+@st.cache_data
+def load_performance_tables():
+    if 'performance' not in st.session_state:
+        try:
+            request_result = data_requests.request_performance_indicators()
+            st.session_state['performance'] = request_result
+        except requests.exceptions.HTTPError as e:
+            print("Error occurred:", e)
+
 def set_performance_sidebar():
-    response_data = requests.get("http://localhost:8502/load-performance-indicators", data=json.dumps(None))
-    if response_data.status_code == 200:
-        performances = response_data.json()["indicators"]
+    if 'performance' in st.session_state:
         with st.sidebar:
             st.sidebar.multiselect(
                 "Please select the performance metrics you would like to see.",
-                performances
+                st.session_state['performance']
             )
 
-@st.cache_data(experimental_allow_widgets=True)
-def place_info_container():
+@st.cache_data
+def get_place_datas():
+    if 'place_info' not in st.session_state:
+        try:
+            request_result = data_requests.request_place_info()
+            st.session_state['place_info'] = request_result
+        except requests.exceptions.HTTPError as e:
+            print("Error occurred:", e)
 
-    st.header("Select Place Information")
+@st.cache_data
+def extract_sectors():
+    if 'place_info' in st.session_state:
+        sector = {}
+        for key, value in st.session_state['place_info'].items():
+            sector[key] = value[0][0]
+        
+        if 'sectors' not in st.session_state:
+            st.session_state['sectors'] = sector
 
-    command, col1, col2, col3, _ = st.columns([2,2,2,2,2])
-    sector_key , building_key, level_key = -1, -1, -1
+def set_place_selection():
+    st.header("Place Information")
+
+    command, col1, col2, col3 = st.columns([1,2,2,2])
+    sector_key = 1
     with command:
         st.write("Select Place you want to Search")
 
-    get_place_datas()
+    with col1:
+        sector_key = select_sector()
+        if sector_key == '':
+            st.selectbox('No sector', ())
 
+    with col2:
+        building_idx = select_building(sector_key)
+        if building_idx == -1:
+            st.selectbox('No building', ())
+
+    with col3:
+        level_name = select_level(sector_key, building_idx)
+        if level_name == "":
+            st.selectbox('No level', ())
+
+def select_sector() -> str:
+    if 'sectors' in st.session_state:
+        print('sectors', st.session_state['sectors'])
+        sector = st.selectbox('Select sector', st.session_state['sectors'].values())
+        sector_key = use_dict.find_key(st.session_state['sectors'], sector)
+        return sector_key
+    return ''
+    
+def select_building(sector_key: str) -> int:
     if 'place_info' in st.session_state:
-        places = list(st.session_state['place_info'].values())
-        print(places)
+        if len(st.session_state['place_info'][sector_key]) > 1:
+            building_list = st.session_state['place_info'][sector_key][1]
+            building_name = st.selectbox('Select building', sorted(building_list))
+            building_idx = building_list.index(building_name)
+        return building_idx
+    return -1
 
-    # with col1:
-    #     if 'sectors' in st.session_state:
-    #         sector = st.selectbox('Select sector', st.session_state['sectors'])
-    #         sector_key = st.session_state['sectors'].index(sector)
-    #     else:
-    #         st.selectbox('Select sector', ())
-
-    # with col2:
-    #     if 'buildings' in st.session_state and sector_key != -1:
-    #         building = st.selectbox('Select building', st.session_state['buildings'][sector_key])
-    #         # building_key = building_list.index(building)
-    #     else:
-    #         st.selectbox('Select building')
-
-    # with col3:
-    #     if 'levels' in st.session_state and sector_key != -1:
-    #         level = st.selectbox('Select level', st.session_state['levels'][sector_key])
-    #         # level_key = level_list.index(level)
-    #     else:
-    #         st.selectbox('Select level')
-
-def get_place_datas():
-    response_data = requests.get("http://localhost:8502/place-info")
-    if response_data.status_code == 200:
-        data = response_data.json()
-
-        place_info = data["placeInfo"]
-
-        # sector_list, building_list, level_list = [], [], []
-        # for i in range(1, len(place_info)+1):
-        #     print(place_info[str(i)])
-        #     print()
-        #     sector_list.append(place_info[str(i)][0])
-        #     if len(place_info[str(i)]) > 1:
-        #         building_list.append(place_info[str(i)][1])
-        #     else:
-        #         building_list.append(['None'])
-
-        #     if len(place_info[str(i)]) > 2:
-        #         level_list.append(place_info[str(i)][2])
-        #     else:
-        #         level_list.append(['None'])
-
-        if 'place_info' not in st.session_state:
-            st.session_state['place_info'] = place_info
-
-        # if 'buildings' not in st.session_state:
-        #     st.session_state['buildings'] = building_list
-        # if 'levels' not in st.session_state:
-        #     st.session_state['levels'] = level_list
+def select_level(sector_key: str, building_idx: int) -> str:
+    if 'place_info' in st.session_state:
+        if len(st.session_state['place_info'][sector_key]) > 2:
+            levels_list = st.session_state['place_info'][sector_key][2]
+            each_level = use_dict.divide_levels(levels_list)
+            level_name = st.selectbox('Select level', sorted(each_level[building_idx], key=use_dict.custom_sort_key))
+        return level_name
+    return ""
 
 
 @st.cache_data
@@ -106,19 +115,20 @@ def get_current_time_and_json():
 
 @st.cache_data
 def get_yesterday_userinfos(current_time_json):
-    if st.session_state['yesterday_date'] == current_time_json:
-        response_data = requests.get("http://localhost:8502/get-yesterday-users", data=json.dumps({'start_time': current_time_json}))
-    
-        if response_data.status_code == 200:
-            st.success('Loaded yesterday\'s whole users')
-            data = response_data.json()
-            
-            if 'users' not in st.session_state:
-                st.session_state['users'] = data["users"]
-            if 'devices' not in st.session_state:
-                st.session_state['devices'] = data["devices"]
-            if 'total_data_count' not in st.session_state:
-                st.session_state['total_data_count'] = data["totalDataCount"]
+    if 'yesterday_date' in st.session_state:
+        if st.session_state['yesterday_date'] == current_time_json:
+            response_data = requests.get("http://localhost:8502/get-yesterday-users", data=json.dumps({'start_time': current_time_json}))
+        
+            if response_data.status_code == 200:
+                st.success('Loaded yesterday\'s whole users')
+                data = response_data.json()
+                
+                if 'users' not in st.session_state:
+                    st.session_state['users'] = data["users"]
+                if 'devices' not in st.session_state:
+                    st.session_state['devices'] = data["devices"]
+                if 'total_data_count' not in st.session_state:
+                    st.session_state['total_data_count'] = data["totalDataCount"]
         
 @st.cache_data
 def save_yesterday_data(current_time_json):
@@ -156,8 +166,11 @@ def load_webpage(current_time_json):
 
 if __name__ == '__main__' :
     set_page_title()
+    load_performance_tables()
     set_performance_sidebar()
-    place_info_container()
+    get_place_datas()
+    extract_sectors()
+    set_place_selection()
     current_time_json = get_current_time_and_json()
     get_yesterday_userinfos(current_time_json)
     save_yesterday_data(current_time_json)
