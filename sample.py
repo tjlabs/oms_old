@@ -2,41 +2,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# 누적 막대그래프 이거 100까지 안 차는 거 수정해야 함 
+def plot_with_two_y_axis(whole_daily_datas):
+    whole_daily_datas = np.array(whole_daily_datas)
+    x = [date['calc_date'][5:10] for date in whole_daily_datas]
+    y1 = [rate['threshold_10'] for rate in whole_daily_datas]
+    y2 = [rate['threshold_30'] for rate in whole_daily_datas]
 
-def plot_combined_bar_and_line_chart(whole_daily_datas, cnt: int, whole_daily_data_cnts: list):
-    max_cnt = float(max(whole_daily_data_cnts))
-    daily_dates = [whole_daily_datas['calc_date'][5:10] for date in whole_daily_datas] # ['Category 1', 'Category 2', 'Category 3', 'Category 4']
-    threshold_10 = [whole_daily_datas['threshold_10'] for date in whole_daily_datas]
-    threshold_30 = [whole_daily_datas['threshold_30'] for date in whole_daily_datas]
-    threshold_50 = [whole_daily_datas['threshold_50'] for date in whole_daily_datas]
-    under_10 = []
-    for val in range(cnt):
-        under_10.append(float(100)-float(threshold_10[val])-float(threshold_30[val])-float(threshold_50[val]))
+    # 그래프 그리기
+    fig, ax1 = plt.subplots()
 
-    width = 0.35
-    ind = np.arange(len(daily_dates))
+    # 첫 번째 y축 (왼쪽 축) 설정
+    ax1.set_xlabel('X')
+    ax1.set_ylabel('Y1', color='tab:red')  # Y1 레이블 색상 설정
+    ax1.plot(x, y1, color='tab:red', label='Y1 데이터')  # Y1 데이터를 빨간색으로 꺾은선 그래프로 표시
+    ax1.tick_params(axis='y', labelcolor='tab:red')  # Y1 축 눈금 레이블 색상 설정
 
-    whole_daily_data_cnts = [rate*float(100)/max_cnt for rate in whole_daily_data_cnts]
-    
-    plt.figure(figsize=(12, 6))
+    # 두 번째 y축 (오른쪽 축) 설정
+    ax2 = ax1.twinx()  # 첫 번째 축(ax1)과 x축을 공유하는 새로운 축(ax2) 생성
+    ax2.set_ylabel('Y2', color='tab:blue')  # Y2 레이블 색상 설정
+    ax2.plot(x, y2, color='tab:blue', label='Y2 데이터')  # Y2 데이터를 파란색으로 꺾은선 그래프로 표시
+    ax2.tick_params(axis='y', labelcolor='tab:blue')  # Y2 축 눈금 레이블 색상 설정
 
-    # 막대 그래프 그리기
-    plt.bar(ind, threshold_50, width, bottom=[float(t30) for t30 in threshold_30], label='loc_diff 50~ (m)')
-    plt.bar(ind, threshold_30, width, bottom=[float(t10) for t10 in threshold_10], label='loc_diff 30~50 (m)')
-    plt.bar(ind, [float(t10) for t10 in threshold_10], width, label='loc_diff 10~30 (m)')
-    plt.bar(ind, under_10, width, bottom=[float(t50) for t50 in threshold_50], label='loc_diff 50~ (m)')
+    # 범례 표시
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2, loc='upper right')
 
-    # 꺾은선 그래프 그리기
-    plt.plot(ind, whole_daily_data_cnts, marker='o', color='b', label='Dataset 3')
-
-    plt.xlabel('Categories')
-    plt.ylabel('Values')
-    plt.title('Combined Bar and Line Chart')
-    plt.xticks(ind, daily_dates)
-    plt.legend()
-
+    plt.title("2개의 y축을 갖는 그래프")
     plt.show()
+
+
 
 if __name__ == '__main__':
     whole_daily_datas = [
@@ -52,5 +47,5 @@ if __name__ == '__main__':
                                 'Count': [109760, 5152, 8788, 50248, 132331, 132903]
                                 })
 
-    plot_combined_bar_and_line_chart(whole_daily_datas[0], len(whole_daily_datas[0]), whole_daily_data_cnts['Count'])
-
+    # plot_combined_bar_and_line_chart(whole_daily_datas[0], len(whole_daily_datas[0]), whole_daily_data_cnts['Count'])
+    plot_with_two_y_axis(whole_daily_datas)
