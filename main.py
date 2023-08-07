@@ -1,8 +1,7 @@
 import streamlit as st
 from datetime import datetime, timedelta
 from utils import data_requests, process_data
-import pandas as pd
-import numpy as np
+from modules.plot import plot_charts
 
 def set_page_title():
     st.set_page_config(page_title="Jupiter Health Check System", page_icon=":desktop_computer:", 
@@ -147,63 +146,26 @@ def save_until_yesterday_data():
                 st.success('Updated until yesterday stats')
 
 def load_webpage(end_time: str):
-    pos_err_diff = st.columns(1)
-    
-    pp2 = st.columns(1)
+    # pp2 = st.columns(1)
 
-    first_fix = st.columns(1)
+    # first_fix = st.columns(1)
 
     chart_data, loaded_data = None, None
-    with pos_err_diff[0]:
+    if 'end_time' in st.session_state:
+        st.title('Position Err Distance Data Chart')
+        tab1, tab2, tab3 = st.tabs(["Pos Diff Ratio", "Data Cnt", "One Site"])
         daily_ped_datas = None
-        if 'end_time' in st.session_state:
-        # if end_time != None:
-            daily_ped_datas = data_requests.position_err_dist_stats(end_time)
-            if len(daily_ped_datas) == 30:
-                print('aaaaaaaaaaa')
-                # data = {
-                #     'Category': ['Category 1', 'Category 2', 'Category 3', 'Category 4'],
-                #     'Value 1': [30, 50, 70, 30],
-                #     'Value 2': [20, 20, 20, 30],
-                #     'Value 3': [20, 20, 0, 0],
-                #     'Value 4': [0, 0, 0, 0]
-                # }
-                # df = pd.DataFrame(data)
+        daily_ped_datas = data_requests.position_err_dist_stats(end_time)
 
-                # # DataFrame을 바 차트로 시각화
-                # st.subheader("바 차트")
-                # st.bar_chart(df.set_index('Category'), use_container_width=True)
+        if len(daily_ped_datas) == 30:
+            with tab1:
+                plot_charts.plot_pos_diff_chrt(daily_ped_datas)
 
-            # --------------------------------------------------------------
+            with tab2:
+                plot_charts.plot_data_cnt(daily_ped_datas)
 
-                dates = daily_ped_datas[:, 0]
-                data_cnts = daily_ped_datas[:, 1]
-                max_cnt = max(data_cnts)
-                bar_heights = [(100*cnt)/max_cnt for cnt in data_cnts]
-                print(daily_ped_datas)
-
-                th_10 = []
-                for idx, ratio in enumerate(bar_heights):
-                    print('1',daily_ped_datas[idx][2:])
-                    daily_ped_datas[idx][2:] *= ratio
-                    print('2',daily_ped_datas[idx][2:])
-                    print('3', ratio-daily_ped_datas[idx][2]-daily_ped_datas[idx][3]-daily_ped_datas[idx][4])
-                    th_10.append(ratio-daily_ped_datas[idx][2]-daily_ped_datas[idx][3]-daily_ped_datas[idx][4])
-
-                formatted_dates = np.vectorize(lambda x: x.strftime("%m-%d"))(dates)
-                converted_dates = [date_str for date_str in formatted_dates]
-
-                ped_data_frame = pd.DataFrame({
-                    'dates': converted_dates,
-                    'threshold_10': th_10,
-                    'threshold_30': list(daily_ped_datas[:, 2]),
-                    'threshold_50': list(daily_ped_datas[:, 3]),
-                    'threshold_100': list(daily_ped_datas[:, 4]),
-                }) # , columns=['threshold 10', 'threshold 30', 'threshold 50', 'threshold_100'])
-
-                # ped_data_frame['data ratio'] = bar_heights
-                st.bar_chart(ped_data_frame.set_index('dates'), height=100, use_container_width=True) #  y=['threshold_10', 'threshold_30', 'threshold_50', 'threshold_100'],
-
+            with tab3:
+                plot_charts.plot_pos_err_one_site(daily_ped_datas)
 
     # with first_fix[0]:
     #     0

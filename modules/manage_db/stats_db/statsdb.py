@@ -1,5 +1,4 @@
 from utils import config
-import psycopg2, os
 from psycopg2 import pool
 from models import models
 

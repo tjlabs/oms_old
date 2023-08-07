@@ -1,9 +1,5 @@
-from tkinter import S
-import requests, json
-import streamlit as st
 from modules.manage_db.where_db import postgres, place_info, position_err_dist, first_fix
 from modules.manage_db.stats_db import statsdb
-from models import models
 import numpy as np
 
 DBConn = postgres.DBConnection()

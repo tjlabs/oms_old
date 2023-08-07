@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-
+import numpy as np
 
 def find_key(dict: dict, target: str) -> str:
     for key, value in dict.items():
@@ -39,3 +39,9 @@ def change_time_format_to_postgresdb(current_utc: str) -> tuple[str, str]:
     modified_dt = datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S') - timedelta(days=1)
     start_time = modified_dt.strftime('%Y-%m-%d %H:%M:%S')
     return start_time, end_time
+
+def convert_date_format(dates: list) -> list:
+        formatted_dates = np.vectorize(lambda x: x.strftime("%m-%d"))(dates)
+        converted_dates = [date_str for date_str in formatted_dates]
+        return converted_dates
+
