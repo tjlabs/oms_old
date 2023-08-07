@@ -55,8 +55,6 @@ def plot_cumulative_bar_chart(whole_daily_datas, whole_daily_data_cnts, cnt: int
     width = 0.7
     ind = np.arange(len(daily_dates))
 
-    
-    
     plt.figure(figsize=(60, 30))
 
     plt.bar(ind, under_10, width, color='royalblue', label='loc_diff 0~10 (m)')
@@ -73,10 +71,32 @@ def plot_cumulative_bar_chart(whole_daily_datas, whole_daily_data_cnts, cnt: int
 
     bar_chart = plt
 
+    return bar_chart
+
+def plot_cumulative_bar_chart2(whole_daily_datas, whole_daily_data_cnts, cnt: int):
+    # 느낌 상 50이상의 수치만 보여주도록 변경 
+    whole_daily_datas = np.array(whole_daily_datas)
+    whole_daily_datas = whole_daily_datas[:cnt]
+    whole_daily_data_cnts = whole_daily_data_cnts[:cnt]
+
+    max_cnt = float(max(whole_daily_data_cnts))
+    daily_dates = [date['calc_date'][5:10] for date in whole_daily_datas] # ['Category 1', 'Category 2', 'Category 3', 'Category 4']
+    threshold_10 = [rate['threshold_10'] for rate in whole_daily_datas]
+    threshold_30 = [rate['threshold_30'] for rate in whole_daily_datas]
+    threshold_50 = [rate['threshold_50'] for rate in whole_daily_datas]
+
+    under_10 = []
+    for val in range(len(whole_daily_data_cnts)):
+        under_10.append(float(100)-float(threshold_10[val])-float(threshold_30[val])-float(threshold_50[val]))
+
+    width = 0.7
+    ind = np.arange(len(daily_dates))
+
+
     plt.figure(figsize=(60, 30))
 
     whole_daily_data_cnts = [rate*float(100)/max_cnt for rate in whole_daily_data_cnts]
-    plt.plot(ind, whole_daily_data_cnts[::-1], marker='o', color='red', label='total data count', linewidth=5)
+    plt.plot(ind, whole_daily_data_cnts, marker='o', color='red', label='total data count', linewidth=5)
     plt.xticks(ind, daily_dates, rotation=45, fontsize=36)
     plt.xlabel('Dates', fontsize=36)
     plt.title('Line Chart', fontsize=48)
@@ -84,7 +104,7 @@ def plot_cumulative_bar_chart(whole_daily_datas, whole_daily_data_cnts, cnt: int
 
     line_chart = plt 
 
-    return bar_chart, line_chart
+    return line_chart
 
 def plot_cumulative_datacnt_height_chart(whole_daily_datas, whole_daily_data_cnts, cnt: int):
     # 느낌 상 50이상의 수치만 보여주도록 변경 
