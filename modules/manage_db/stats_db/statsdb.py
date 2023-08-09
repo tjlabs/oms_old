@@ -136,7 +136,7 @@ class StatsDBConnection:
         return daily_stats
     
     def insert_TTFF_stats(self, stabilization_info: models.TimeToFirstFix):
-        INSERT_QUERY = """INSERT INTO time_to_first_fix (sector_id, calc_date, daily_avg_ttff,
+        INSERT_QUERY = """INSERT INTO renewal_time_to_first_fix (sector_id, calc_date, daily_avg_ttff,
                         hour_unit_ttff, users_count) VALUES (%s, %s, %s, %s, %s) """
 
         conn = self.get_stats_connection()

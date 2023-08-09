@@ -3,7 +3,7 @@ import math
 from models import models
 
 def calc_coord_diff(whole_coordinates: list) -> list[float]:
-    diff_dist: List[float] = [0]
+    diff_dist: List[float] = [0.0]
     for idx in range(len(whole_coordinates)-1):
         x1, y1 = float(whole_coordinates[idx].x), float(whole_coordinates[idx].y)
         x2, y2 = float(whole_coordinates[idx+1].x), float(whole_coordinates[idx+1].y)

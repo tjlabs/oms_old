@@ -19,8 +19,8 @@ class DBConnection:
     def put_db_connection(self, conn):
         self.connection_pool.putconn(conn)
 
-    def select_userids_and_device_models(self, sector_id, start_time, end_time):
-        SELECT_QUERY = """SELECT DISTINCT mr.user_id, u.device_model FROM mobile_results AS mr
+    def select_user_ids(self, sector_id, start_time, end_time) -> list:
+        SELECT_QUERY = """SELECT DISTINCT mr.user_id FROM mobile_results AS mr
                 INNER JOIN users AS u ON u.id = mr.user_id
                 INNER JOIN levels AS l ON l.short_name = mr.level_name
                 INNER JOIN buildings AS b ON b.id = l.building_id
@@ -37,13 +37,12 @@ class DBConnection:
         finally:
             self.put_db_connection(conn)
 
-        user_ids, device_models = [], []
+        user_ids = []
 
         for record in records:
             user_ids.append(record[0])
-            device_models.append(record[1])
 
-        return user_ids, device_models
+        return user_ids
     
     def count_mobile_results(self, sector_id, start_time, end_time):
         SELECT_QUERY = """SELECT COUNT(*)

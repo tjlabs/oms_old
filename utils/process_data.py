@@ -40,7 +40,7 @@ def change_time_format_to_postgresdb(current_utc: str) -> tuple[str, str]:
     start_time = modified_dt.strftime('%Y-%m-%d %H:%M:%S')
     return start_time, end_time
 
-def convert_date_format(dates: list) -> list:
+def convert_date_format(dates: np.ndarray) -> list:
         formatted_dates = np.vectorize(lambda x: x.strftime("%m-%d"))(dates)
         converted_dates = [date_str for date_str in formatted_dates]
         return converted_dates
