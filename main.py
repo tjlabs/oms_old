@@ -1,8 +1,8 @@
 import streamlit as st
 from datetime import datetime, timedelta
-from utils import data_requests, process_data
+from utils import process_data
 from modules.manage_db.stats_db import statsdb
-from modules.manage_db.where_db import basic_setting, postgresDBModule
+from modules.manage_db.where_db import basic_setting, postgresDBModule, position_err_dist, first_fix
 from modules.plot import plot_charts
 import pandas as pd
 import numpy as np
@@ -106,15 +106,18 @@ def get_current_time_and_json() -> tuple[str, str]:
         
 @st.cache_data
 def save_until_yesterday_data(start_time: str, end_time: str, sector_key: str):
-    users, total_count = data_requests.request_yesterday_whole_users(start_time, end_time)
+    users = basic_setting.select_user_ids(db_conn, 6, start_time, end_time)
+    total_count = basic_setting.count_mobile_results(db_conn, 6, start_time, end_time)
 
     is_updated = stats_DB_conn.check_yesterday_stats_exists('location_difference', end_time)
     if is_updated == False:
-        data_requests.update_postition_err_dist(users, start_time, end_time, sector_key)
+        one_day_trajectory = position_err_dist.get_positiong_error_distance(db_conn, users, int(sector_key), start_time, end_time)
+        stats_DB_conn.insert_position_err_stats(one_day_trajectory)
     
     is_updated = stats_DB_conn.check_yesterday_stats_exists('time_to_first_fix', end_time)
     if is_updated == False:
-        data_requests.update_time_to_first_fix(users, start_time, end_time, sector_key)
+        stabilization_info = first_fix.get_phase_one_to_four_time(db_conn, users, start_time, end_time, int(sector_key))
+        stats_DB_conn.insert_TTFF_stats(stabilization_info)
         st.success('Updated until yesterday stats')
 
 def load_webpage(end_time: str):
