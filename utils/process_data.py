@@ -29,7 +29,7 @@ def divide_levels(levels_list: list) -> list:
 def change_time_format_to_postgresdb(current_utc: str) -> tuple[str, str]:
 
     if int(current_utc[11:13]) < 15:
-        current_utc = current_utc[:8] + str(int(current_utc[9:10])-1).zfill(2) + ' 15:00:00'
+        current_utc = current_utc[:8] + str(int(current_utc[8:10])-1).zfill(2) + ' 15:00:00'
 
     else:
         current_utc = current_utc[:11] + '15:00:00'

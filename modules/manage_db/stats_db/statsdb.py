@@ -43,7 +43,7 @@ class StatsDBConnection:
         return table_list
     
     def delete_row(self, id):
-        DELETE_QUERY =  """DELETE FROM time_to_first_fix WHERE id = %s"""
+        DELETE_QUERY =  """DELETE FROM location_difference WHERE id = %s"""
 
         conn = self.get_stats_connection()
 
@@ -60,7 +60,7 @@ class StatsDBConnection:
     def check_yesterday_stats_exists(self, table_name: str, start_time: str) -> bool:
         EXIST_QUERY = """SELECT EXISTS (SELECT calc_date
                         FROM {}
-                        WHERE calc_date=%s
+                        WHERE calc_date=<%s
                         ) AS exists_flag"""
         
         conn = self.get_stats_connection()

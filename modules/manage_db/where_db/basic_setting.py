@@ -1,3 +1,5 @@
+from modules.manage_db.where_db import postgresDBModule
+
 class PlaceInfo:
     def __init__(self, DBConn) -> None:
         self.place_info = {}
@@ -94,3 +96,47 @@ class PlaceInfo:
 
             prev_sector_id = tuple_level[0]
             prev_building_id = tuple_level[1]
+
+
+def select_user_ids(db_conn: postgresDBModule.DBConnection, sector_id, start_time, end_time) -> list:
+    SELECT_QUERY = """SELECT DISTINCT mr.user_id FROM mobile_results AS mr
+            INNER JOIN users AS u ON u.id = mr.user_id
+            INNER JOIN levels AS l ON l.short_name = mr.level_name
+            INNER JOIN buildings AS b ON b.id = l.building_id
+            INNER JOIN sectors AS s ON s.id = b.sector_id
+            WHERE mr.sector_id = %s AND mr.mobile_time >= %s AND mr.mobile_time < %s"""
+    
+    conn = db_conn.get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(SELECT_QUERY, (sector_id, start_time, end_time, ))
+            records = cur.fetchall()
+    except Exception as error:
+        raise Exception (f"error while selecting user ids and device models : {error}")
+    finally:
+        db_conn.put_db_connection(conn)
+
+    user_ids = []
+
+    for record in records:
+        user_ids.append(record[0])
+
+    return user_ids
+
+def count_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id, start_time, end_time):
+    SELECT_QUERY = """SELECT COUNT(*)
+                    FROM mobile_results
+                    WHERE sector_id = %s
+                    AND mobile_time >= %s AND mobile_time <= %s
+                    """
+    conn = db_conn.get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(SELECT_QUERY, (sector_id, start_time, end_time, ))
+            total_count = cur.fetchone()[0]
+    except Exception as error:
+        raise Exception (f"error while counting datas : {error}")
+    finally:
+        db_conn.put_db_connection(conn)
+
+    return total_count

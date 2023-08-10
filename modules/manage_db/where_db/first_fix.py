@@ -1,9 +1,9 @@
 from audioop import avg
 from datetime import datetime, timedelta
 from models import models
-from modules.manage_db.where_db.postgres import DBConnection
+from modules.manage_db.where_db import postgresDBModule
 
-def get_phase_one_to_four_time(db_conn: DBConnection, user_ids: list[str], start_time: str, end_time: str, sector_id: int) -> models.TimeToFirstFix:
+def get_phase_one_to_four_time(db_conn: postgresDBModule.DBConnection, user_ids: list[str], start_time: str, end_time: str, sector_id: int) -> models.TimeToFirstFix:
     hourUnitTTFF: list[int] = [0]*24
     hourUnitCount: list[int] = [0]*24
     not_count, total_time = 0, 0
@@ -79,7 +79,7 @@ def get_phase_one_time(self, user) -> datetime:
 
     return phase_one_time  
 
-def get_phase_one_time_in_rq_inpt(db_conn: DBConnection, user: str, start_time: str, end_time: str, sector_id: int) -> datetime:
+def get_phase_one_time_in_rq_inpt(db_conn: postgresDBModule.DBConnection, user: str, start_time: str, end_time: str, sector_id: int) -> datetime:
     SELECT_QUERY = """SELECT mobile_time FROM request_inputs
                     WHERE mobile_time >= %s
                     AND mobile_time < %s
@@ -179,7 +179,7 @@ def get_phase_four_time(self, phase_one_time: datetime, user) -> tuple[datetime,
 
     return phase_four_time, phase_four_idx
 
-def get_phase_four_time_in_rq_out(db_conn: DBConnection, phase_one_time: datetime, user: str, end_time: str) -> datetime:
+def get_phase_four_time_in_rq_out(db_conn: postgresDBModule.DBConnection, phase_one_time: datetime, user: str, end_time: str) -> datetime:
     SELECT_QUERY = """SELECT mobile_time FROM request_outputs
                     WHERE mobile_time >= %s
                     AND mobile_time < %s
