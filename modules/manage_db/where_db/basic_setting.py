@@ -1,4 +1,6 @@
 from modules.manage_db.where_db import postgresDBModule
+from datetime import datetime
+from models import models
 
 def get_place_info(db_conn: postgresDBModule.DBConnection) -> dict:
     place_info = get_sectors(db_conn)
@@ -141,3 +143,53 @@ def count_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id, star
         db_conn.put_db_connection(conn)
 
     return total_count
+
+# sector_id 연계해서 언젠간 작성해야 함
+def query_one_day_data(db_conn: postgresDBModule.DBConnection, user: str, start_time: datetime, end_time: datetime) -> models.OneuserWholeTestSets:
+    SELECT_QUERY = """SELECT mobile_time, index
+                    FROM request_outputs
+                    WHERE mobile_time >= %s AND mobile_time < %s
+                    AND user_id = %s
+                    ORDER BY mobile_time
+                    """
+    conn = db_conn.get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(SELECT_QUERY, (start_time, end_time, user, ))
+            total_mobile_results = cur.fetchall()
+    except Exception as error:
+        raise Exception (f"error while counting datas : {error}")
+    finally:
+        db_conn.put_db_connection(conn)
+
+    user_whole_testsets = divide_test_sets(list(total_mobile_results), user)
+
+    return user_whole_testsets
+
+def divide_test_sets(total_mobile_results: list, user: str) -> models.OneuserWholeTestSets:
+    prev_db_idx: int = 0
+    user_whole_testsets = models.OneuserWholeTestSets(
+        user_id = user
+    )
+    test = models.TestSet(
+        start_time=total_mobile_results[0][0]
+    )
+    retest = False
+    for idx, data in enumerate(total_mobile_results):
+        if int(data[1]) < prev_db_idx:
+            test.end_time = total_mobile_results[idx-1][0]
+            user_whole_testsets.test_sets.append(test)
+            test = models.TestSet(
+                start_time=data[0]
+            )
+            prev_db_idx = int(data[1])
+            retest = True
+            continue
+
+        prev_db_idx = int(data[1])
+
+    if retest == False:
+        test.end_time = total_mobile_results[-1][0]
+        user_whole_testsets.test_sets.append(test)
+
+    return user_whole_testsets

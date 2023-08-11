@@ -3,17 +3,18 @@ from modules.calculation import calculate
 from modules.manage_db.where_db import postgresDBModule
 from datetime import datetime, timedelta
     
-def get_positiong_error_distance(db_conn: postgresDBModule.DBConnection, user_ids: list, sector_id: int, end_time: datetime) -> models.PositionTrajectory:
+def get_positiong_error_distance(db_conn: postgresDBModule.DBConnection, one_day_whole_test_sets: list, sector_id: int, end_time: datetime) -> models.PositionTrajectory:
     oneday_whole_user_datas: list[models.OneUserPositionErrTable] = []
     start_time = end_time - timedelta(days=1)
 
-    for _, user_id in enumerate(user_ids):
-        whole_coords = get_user_whole_coords(db_conn, sector_id, user_id, start_time, end_time, )
-        diff_dist = calculate.calc_coord_diff(whole_coords)
-        threshold_err_ratio: models.OneUserPositionErrTable = calculate.calc_err_frequency(diff_dist)
-        threshold_err_ratio.user_dist_diff = diff_dist
+    for one_user in one_day_whole_test_sets:
+        for one_test in one_user.test_sets:
+            whole_coords = get_user_whole_coords(db_conn, sector_id, one_user.user_id, one_test.start_time, one_test.end_time)
+            diff_dist = calculate.calc_coord_diff(whole_coords)
+            threshold_err_ratio: models.OneUserPositionErrTable = calculate.calc_err_frequency(diff_dist)
+            threshold_err_ratio.user_dist_diff = diff_dist
 
-        oneday_whole_user_datas.append(threshold_err_ratio)
+            oneday_whole_user_datas.append(threshold_err_ratio)
 
     oneday_position_err_data = calculate.calc_oneday_position_correction(oneday_whole_user_datas)
     one_day_trajectory = models.PositionTrajectory(
@@ -29,7 +30,7 @@ def get_user_whole_coords(db_conn: postgresDBModule.DBConnection, sector_id: int
                             INNER JOIN levels AS l ON l.short_name = mr.level_name
                             INNER JOIN buildings AS b ON b.id = l.building_id
                             INNER JOIN sectors AS s ON s.id = b.sector_id
-                            WHERE s.id = %s AND mr.user_id = %s
+                            WHERE mr.sector_id = %s AND mr.user_id = %s
                             AND mobile_time >= %s AND mobile_time < %s
                             ORDER BY mr.mobile_time"""
     

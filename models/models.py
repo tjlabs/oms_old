@@ -35,7 +35,7 @@ class TimeToFirstFix:
     sector_id: int = 6
     calc_date: datetime = datetime.now()
     avg_stabilization_time: float = 0.0
-    hour_unit_TTFF: list[int] = field(default_factory=list)
+    hour_unit_ttff: list[int] = field(default_factory=list)
     user_count: int = 0
 
 @dataclass
@@ -48,3 +48,13 @@ class PositionTrajectory:
 @dataclass
 class DailyPED:
     daily_ped_datas: tuple = field(default_factory=tuple)
+
+@dataclass
+class TestSet:
+    start_time: datetime = datetime.now()
+    end_time: datetime = datetime.now()
+
+@dataclass
+class OneuserWholeTestSets:
+    test_sets: list[TestSet] = field(default_factory=list)
+    user_id: str = ""

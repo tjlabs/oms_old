@@ -130,7 +130,7 @@ def insert_TTFF_stats(stats_DB_conn: StatsDBConnection, stabilization_info: mode
     try:
         with conn.cursor() as cur:
             cur.execute(INSERT_QUERY, (stabilization_info.sector_id, stabilization_info.calc_date,
-                                        stabilization_info.avg_stabilization_time, stabilization_info.hour_unit_TTFF,
+                                        stabilization_info.avg_stabilization_time, stabilization_info.hour_unit_ttff, 
                                         stabilization_info.user_count, ))
     except Exception as error:
         raise Exception (f"error while checking tables: {error}")

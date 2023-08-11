@@ -90,14 +90,20 @@ def save_until_yesterday_data(end_time: datetime, sector_key: str):
     users = basic_setting.select_user_ids(db_conn, 6, start_time, end_time)
     total_count = basic_setting.count_mobile_results(db_conn, 6, start_time, end_time)
 
+    one_day_whole_test_sets = []
+
+    for user in users:
+        user_whole_testsets = basic_setting.query_one_day_data(db_conn, user, start_time, end_time)
+        one_day_whole_test_sets.append(user_whole_testsets)
+
     is_updated = get_stats.check_yesterday_stats_exists(stats_DB_conn, 'location_difference', end_time)
     if is_updated == False:
-        one_day_trajectory = position_err_dist.get_positiong_error_distance(db_conn, users, 6, end_time)
+        one_day_trajectory = position_err_dist.get_positiong_error_distance(db_conn, one_day_whole_test_sets, 6, end_time)
         get_stats.insert_position_err_stats(stats_DB_conn, one_day_trajectory)
-    
+        
     is_updated = get_stats.check_yesterday_stats_exists(stats_DB_conn, 'time_to_first_fix', end_time)
     if is_updated == False:
-        stabilization_info = first_fix.get_phase_one_to_four_time(db_conn, users, start_time, end_time, 6)
+        stabilization_info = first_fix.get_phase_one_to_four_time(db_conn, one_day_whole_test_sets, start_time, end_time, 6)
         get_stats.insert_TTFF_stats(stats_DB_conn, stabilization_info)
         st.success('Updated until yesterday stats')
 
@@ -106,14 +112,21 @@ def load_webpage(utc_time: datetime):
 
     with ped[0]:
         daily_ped_datas = get_stats.get_position_err_dist_stats(stats_DB_conn, utc_time)
-        if len(daily_ped_datas) == 30:
-            plot_charts.plot_position_loc_stats(np.array(daily_ped_datas))
+        _, day = st.columns([4, 2])
+        dates = day.radio('', ('7days', '14days', '30days'), key='LD', horizontal=True)
+        if len(daily_ped_datas) == 30 and dates != None:
+            date = int(dates[:-4])
+            daily_ped_datas = np.array(daily_ped_datas)[:date]
+            plot_charts.plot_position_loc_stats(daily_ped_datas)
 
     with ttff[0]:
         daily_tf_datas = None        
         daily_tf_datas = get_stats.get_TTFF(stats_DB_conn, utc_time)
-
-        if len(daily_tf_datas) == 30:
+        _, day = st.columns([4, 2])
+        dates = day.radio('', ('7days', '14days', '30days'), key='TTFF', horizontal=True)
+        if len(daily_tf_datas) == 30 and dates != None:
+            date = int(dates[:-4])
+            daily_tf_datas = daily_tf_datas[:date]
             plot_charts.ttff_line_chart(daily_tf_datas)
 
 

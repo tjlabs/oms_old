@@ -33,14 +33,16 @@ def plot_position_loc_stats(daily_ped_datas: np.ndarray):
     color_scale = alt.Scale(domain=['threshold_010', 'threshold_030', 'threshold_050', 'threshold_100'],
         range=['lightskyblue', 'lightgreen', 'lightsalmon', 'tomato'])
 
-    bar = alt.Chart(melted_data, title="Location Difference Chart").mark_bar(size=15).encode(
+    bar = alt.Chart(melted_data).mark_bar(size=15).encode(
         x='dates:T',
         y=alt.Y('value:Q', title='Location Difference', scale=alt.Scale(domain=[0, 20])),
         color=alt.Color('threshold:N', scale=color_scale),
         tooltip=['value', 'threshold']
     ).properties(
         width=alt.Step(0)
-    ).interactive()
+    ).interactive().properties(
+        title=alt.TitleParams(text="Location Difference Chart", fontSize=20)
+    )
 
     layered_chart = alt.layer(bar, line).resolve_scale(
         y='independent'
@@ -49,7 +51,7 @@ def plot_position_loc_stats(daily_ped_datas: np.ndarray):
     st.altair_chart(layered_chart, use_container_width=True) # type: ignore
 
 
-def plot_daily_ttff(daily_tf_datas: tuple, height: int) -> None:
+def plot_daily_ttff(daily_tf_datas: np.ndarray, height: int) -> None:
     dates = [item[0] for item in daily_tf_datas]
     avg_time = [item[1] for item in daily_tf_datas]
     ttff_data_frame = pd.DataFrame({
@@ -68,25 +70,17 @@ def ttff_line_chart(daily_tf_datas: tuple):
 
         ttff_data_frame = pd.DataFrame({
             'dates': process_data.convert_date_format(np.array(dates)),
-            'avg stabilization time': avg_time,
+            'avg time to first fix': avg_time,
         })
 
-        area_chart = alt.Chart(ttff_data_frame).mark_area(
-            line=True,
-            color='lightblue',
-            opacity=0.4
-        ).encode(
-            x='dates:T',
-            y='avg stabilization time:Q'
-        )
 
-        line_chart = alt.Chart(ttff_data_frame, title="Time To First Fix Chart").mark_line(
+        line_chart = alt.Chart(ttff_data_frame).mark_line(
             color='blue'
         ).encode(
             x='dates:T',
-            y='avg stabilization time:Q'
+            y='avg time to first fix:Q'
+        ).interactive().properties(
+            title=alt.TitleParams(text="Time To First Fix Chart", fontSize=20)
         )
 
-        combined_chart = area_chart + line_chart
-
-        st.altair_chart(combined_chart, use_container_width=True) # type: ignore
+        st.altair_chart(line_chart, use_container_width=True) # type: ignore
