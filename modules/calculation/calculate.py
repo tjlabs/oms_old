@@ -29,8 +29,6 @@ def calc_err_frequency(diff_dist: list[float]) -> models.OneUserPositionErrTable
     return perthreshold
 
 def calc_threshold_err_ratio(diff_dist: list[float], threshold: float) -> tuple[float, float]:
-    # ** LD에서 통계를 구하는 기준이 현재 total : 변화량이 0이 아닌 애들만 count된 것 
-    # 그러니까 수집된 총 데이터 개수랑 다른 것임
     total, cnt = 0.0, 0.0
     for idx, dist in enumerate(diff_dist):
         if diff_dist[idx] == 0 and idx == 0:

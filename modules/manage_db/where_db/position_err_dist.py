@@ -1,12 +1,13 @@
 from models import models
 from modules.calculation import calculate
 from modules.manage_db.where_db import postgresDBModule
+from datetime import datetime, timedelta
     
-def get_positiong_error_distance(db_conn: postgresDBModule.DBConnection, user_ids: list, sector_id: int, start_time: str, end_time: str) -> models.PositionTrajectory:
+def get_positiong_error_distance(db_conn: postgresDBModule.DBConnection, user_ids: list, sector_id: int, end_time: datetime) -> models.PositionTrajectory:
     oneday_whole_user_datas: list[models.OneUserPositionErrTable] = []
-    # ** 이 수치도 지금 1명의 user가 단 1번의 test를 시행했다는 가정에 의해 검출된 통계. 
-    # 만약 동일 id를 가진 user가 2회 이상 시스템을 사용했을 때에 대한 분류가 필요
-    for idx, user_id in enumerate(user_ids):
+    start_time = end_time - timedelta(days=1)
+
+    for _, user_id in enumerate(user_ids):
         whole_coords = get_user_whole_coords(db_conn, sector_id, user_id, start_time, end_time, )
         diff_dist = calculate.calc_coord_diff(whole_coords)
         threshold_err_ratio: models.OneUserPositionErrTable = calculate.calc_err_frequency(diff_dist)
@@ -23,7 +24,7 @@ def get_positiong_error_distance(db_conn: postgresDBModule.DBConnection, user_id
 
     return one_day_trajectory
 
-def get_user_whole_coords(db_conn: postgresDBModule.DBConnection, sector_id: int, user_id: str, start_time: str, end_time: str) -> list:
+def get_user_whole_coords(db_conn: postgresDBModule.DBConnection, sector_id: int, user_id: str, start_time: datetime, end_time: datetime) -> list:
     SELECT_DEVICE_COORDS = """SELECT mr.x, mr.y FROM mobile_results AS mr
                             INNER JOIN levels AS l ON l.short_name = mr.level_name
                             INNER JOIN buildings AS b ON b.id = l.building_id

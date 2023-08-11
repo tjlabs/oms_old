@@ -1,10 +1,7 @@
 from dataclasses import field, dataclass
 from datetime import timedelta
+from datetime import datetime
 
-from numpy import float64
-# ** dataclass로 끌고 가는게 왜 진짜로 편리한지 적어두기
-# 편리한 이유 1: 여러 세부 속성들을 하나의 큰 속성으로 묶어서 반환 및 입력 받을 수 있어서 전달 인자가 줄어들고
-# 안전하다. 
 @dataclass
 class OneDayInfo:
     start_time: str = ""
@@ -28,7 +25,6 @@ class OneUserPositionErrTable:
     threshold_50: float = 0.0
     user_data_cnt: float = 0.0
     user_dist_diff: list[float] = field(default_factory=list)
-    device_info: DiscoveredDevice = DiscoveredDevice()
 
 @dataclass
 class OneUserTTFF:
@@ -37,7 +33,7 @@ class OneUserTTFF:
 @dataclass
 class TimeToFirstFix:
     sector_id: int = 6
-    calc_date: str = ""
+    calc_date: datetime = datetime.now()
     avg_stabilization_time: float = 0.0
     hour_unit_TTFF: list[int] = field(default_factory=list)
     user_count: int = 0
@@ -45,9 +41,10 @@ class TimeToFirstFix:
 @dataclass
 class PositionTrajectory:
     sector_id: int = 0
-    calc_date: str = ""
+    calc_date: datetime = datetime.now()
     one_day_stat: OneUserPositionErrTable = OneUserPositionErrTable()
     one_day_data_cnt: float = 0.0
 
-if __name__ == '__main__':
-    0
+@dataclass
+class DailyPED:
+    daily_ped_datas: tuple = field(default_factory=tuple)

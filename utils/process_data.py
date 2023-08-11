@@ -26,18 +26,16 @@ def divide_levels(levels_list: list) -> list:
         result_list.append(temp_list)
     return result_list
 
-def change_time_format_to_postgresdb(current_utc: str) -> tuple[str, str]:
+def change_time_format_to_postgresdb(utc_time: datetime) -> tuple[datetime, datetime]:
 
-    if int(current_utc[11:13]) < 15:
-        current_utc = current_utc[:8] + str(int(current_utc[8:10])-1).zfill(2) + ' 15:00:00'
+    if utc_time.hour < 15:
+        utc_time -= timedelta(days=1)
+        end_time = utc_time.replace(hour=15, minute=0, second=0)
 
     else:
-        current_utc = current_utc[:11] + '15:00:00'
+        end_time = utc_time.replace(hour=15, minute=0, second=0)
 
-    end_time = current_utc
-
-    modified_dt = datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S') - timedelta(days=1)
-    start_time = modified_dt.strftime('%Y-%m-%d %H:%M:%S')
+    start_time = end_time - timedelta(days=1)
     return start_time, end_time
 
 def convert_date_format(dates: np.ndarray) -> list:

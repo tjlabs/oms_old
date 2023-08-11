@@ -1,38 +1,22 @@
 import streamlit as st
 from datetime import datetime, timedelta
 from utils import process_data
-from modules.manage_db.stats_db import statsdb
+from modules.manage_db.stats_db import statsdb, get_stats
 from modules.manage_db.where_db import basic_setting, postgresDBModule, position_err_dist, first_fix
 from modules.plot import plot_charts
-import pandas as pd
 import numpy as np
-import plotly.express as px
-import altair as alt
 
 db_conn = postgresDBModule.DBConnection()
 stats_DB_conn = statsdb.StatsDBConnection()
 
-def set_page_title():
+def set_page_title() -> None:
     st.set_page_config(page_title="Jupiter Health Check System", page_icon=":desktop_computer:", 
-                       layout="wide", initial_sidebar_state="expanded")
+                    layout="wide", initial_sidebar_state="expanded")
     st.title(":desktop_computer: Jupiter Health Check System")
-    st.divider()
-
-@st.cache_data
-def load_performance_tables() -> list:
-    return stats_DB_conn.get_tables()
-
-def set_performance_sidebar(table_list: list) -> None:
-    with st.sidebar:
-        st.sidebar.multiselect(
-            "Please select the performance metrics you would like to see.",
-            table_list
-        )
 
 @st.cache_data
 def get_place_datas() -> dict:
-    place = basic_setting.PlaceInfo(db_conn)
-    return place.get_place_info()
+    return basic_setting.get_place_info(db_conn)
 
 @st.cache_data
 def extract_sectors(place_info: dict) -> dict:
@@ -42,28 +26,30 @@ def extract_sectors(place_info: dict) -> dict:
     return sector
 
 def set_place_selection(place_info: dict, sector:dict) -> str:
-    st.header("Place Information")
+    with st.container():
+        st.write("Place Information")
 
-    command, col1, col2, col3 = st.columns([1,2,2,2])
-    sector_key = 1
-    with command:
-        st.write("Select Place you want to Search")
+        command, col1, col2, col3 = st.columns([1,2,2,2])
+        sector_key = 1
+        with command:
+            st.write("Select Place you want to Search")
 
-    with col1:
-        sector_key = select_sector(sector)
-        if sector_key == '':
-            st.selectbox('No sector', ())
+        with col1:
+            sector_key = select_sector(sector)
+            if sector_key == '':
+                st.selectbox('No sector', ())
 
-    with col2:
-        building_idx = select_building(sector_key, place_info)
-        if building_idx == -1:
-            st.selectbox('No building', ())
+        with col2:
+            building_idx = select_building(sector_key, place_info)
+            if building_idx == -1:
+                st.selectbox('No building', ())
 
-    with col3:
-        level_name = select_level(sector_key, building_idx, place_info)
-        if level_name == "":
-            st.selectbox('No level', ())
-
+        with col3:
+            level_name = select_level(sector_key, building_idx, place_info)
+            if level_name == "":
+                st.selectbox('No level', ())
+        
+    st.divider()
     return sector_key
 
 def select_sector(sectors: dict) -> str:
@@ -91,56 +77,41 @@ def select_level(sector_key: str, building_idx: int, place_info) -> str:
     return ""
 
 @st.cache_data
-def get_current_time_and_json() -> tuple[str, str]: 
-    with st.columns(1)[0]:
-        st.header("Current Time")
-        korea_timezone = timedelta(hours=9)
-        utc_time = datetime.utcnow()
-        korea_time = utc_time + korea_timezone
-        today_date = utc_time.strftime('%Y-%m-%d %H:%M:%S')
+def get_current_time_and_json() -> tuple[datetime, datetime]: 
+    utc_time = datetime.utcnow()
+    today_date = utc_time.strftime('%Y-%m-%d %H:%M:%S')
 
-    formatted_korea_time = korea_time.strftime('%Y-%m-%d %H:%M:%S')
-    st.markdown(f"<span style='font-size: 40px;'>{formatted_korea_time}</span>", unsafe_allow_html=True)
-    start_time, end_time = process_data.change_time_format_to_postgresdb(today_date)
+    start_time, end_time = process_data.change_time_format_to_postgresdb(utc_time)
     return start_time, end_time
         
 @st.cache_data
-def save_until_yesterday_data(start_time: str, end_time: str, sector_key: str):
+def save_until_yesterday_data(end_time: datetime, sector_key: str):
+    start_time = end_time - timedelta(days=1)
     users = basic_setting.select_user_ids(db_conn, 6, start_time, end_time)
     total_count = basic_setting.count_mobile_results(db_conn, 6, start_time, end_time)
 
-    is_updated = stats_DB_conn.check_yesterday_stats_exists('location_difference', end_time)
+    is_updated = get_stats.check_yesterday_stats_exists(stats_DB_conn, 'location_difference', end_time)
     if is_updated == False:
-        one_day_trajectory = position_err_dist.get_positiong_error_distance(db_conn, users, int(sector_key), start_time, end_time)
-        stats_DB_conn.insert_position_err_stats(one_day_trajectory)
+        one_day_trajectory = position_err_dist.get_positiong_error_distance(db_conn, users, 6, end_time)
+        get_stats.insert_position_err_stats(stats_DB_conn, one_day_trajectory)
     
-    is_updated = stats_DB_conn.check_yesterday_stats_exists('time_to_first_fix', end_time)
+    is_updated = get_stats.check_yesterday_stats_exists(stats_DB_conn, 'time_to_first_fix', end_time)
     if is_updated == False:
-        stabilization_info = first_fix.get_phase_one_to_four_time(db_conn, users, start_time, end_time, int(sector_key))
-        stats_DB_conn.insert_TTFF_stats(stabilization_info)
+        stabilization_info = first_fix.get_phase_one_to_four_time(db_conn, users, start_time, end_time, 6)
+        get_stats.insert_TTFF_stats(stats_DB_conn, stabilization_info)
         st.success('Updated until yesterday stats')
 
-def load_webpage(end_time: str):
-    ped, ttff = st.columns([4,2])
+def load_webpage(utc_time: datetime):
+    ped, ttff = st.columns([1]), st.columns([1])
 
-    with ped:
-        st.subheader('Position Err Distance Data Chart')
-        tab1, tab2 = st.tabs(["One Site", "With Line Chart"])
-        daily_ped_datas = None
-        daily_ped_datas = np.array(stats_DB_conn.get_position_err_dist_stats(end_time))
-
+    with ped[0]:
+        daily_ped_datas = get_stats.get_position_err_dist_stats(stats_DB_conn, utc_time)
         if len(daily_ped_datas) == 30:
-            with tab1:
-                plot_charts.plot_position_loc_stats(daily_ped_datas)
+            plot_charts.plot_position_loc_stats(np.array(daily_ped_datas))
 
-            with tab2:
-                plot_charts.plot_pos_err_one_site(daily_ped_datas, height=500)
-
-
-    with ttff:
-        st.subheader('Time To First Fix Data Chart')
+    with ttff[0]:
         daily_tf_datas = None        
-        daily_tf_datas = stats_DB_conn.get_TTFF(end_time)
+        daily_tf_datas = get_stats.get_TTFF(stats_DB_conn, utc_time)
 
         if len(daily_tf_datas) == 30:
             plot_charts.ttff_line_chart(daily_tf_datas)
@@ -148,13 +119,10 @@ def load_webpage(end_time: str):
 
 if __name__ == '__main__' :
     set_page_title()
-    table_list = load_performance_tables()
-    set_performance_sidebar(table_list)
     place_info = get_place_datas()
     sector = extract_sectors(place_info)
     sector_key = set_place_selection(place_info, sector)
     start_time, end_time = get_current_time_and_json()
-
-    # save_until_yesterday_data(start_time, end_time, sector_key)
+    # save_until_yesterday_data(end_time, sector_key)
     load_webpage(end_time)
 
