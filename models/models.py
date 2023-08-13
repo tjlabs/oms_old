@@ -35,7 +35,7 @@ class TimeToFirstFix:
     sector_id: int = 6
     calc_date: datetime = datetime.now()
     avg_stabilization_time: float = 0.0
-    hour_unit_ttff: list[int] = field(default_factory=list)
+    hour_unit_ttff: list[float] = field(default_factory=list)
     user_count: int = 0
 
 @dataclass

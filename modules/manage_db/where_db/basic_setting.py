@@ -103,17 +103,11 @@ def get_levels(place_info: dict, db_conn: postgresDBModule.DBConnection) -> dict
 
 def select_user_ids(db_conn: postgresDBModule.DBConnection, sector_id, start_time, end_time) -> list:
     SELECT_QUERY = """SELECT DISTINCT mr.user_id FROM mobile_results AS mr
-            INNER JOIN users AS u ON u.id = mr.user_id
-            INNER JOIN levels AS l ON l.short_name = mr.level_name
-            INNER JOIN buildings AS b ON b.id = l.building_id
-            INNER JOIN sectors AS s ON s.id = b.sector_id
             WHERE mr.sector_id = %s AND mr.mobile_time >= %s AND mr.mobile_time < %s"""
     
     conn = db_conn.get_db_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute(SELECT_QUERY, (sector_id, start_time, end_time, ))
-            records = cur.fetchall()
+        records = db_conn.executeAll(SELECT_QUERY, (sector_id, start_time, end_time, ))
     except Exception as error:
         raise Exception (f"error while selecting user ids and device models : {error}")
     finally:
@@ -154,14 +148,15 @@ def query_one_day_data(db_conn: postgresDBModule.DBConnection, user: str, start_
                     """
     conn = db_conn.get_db_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute(SELECT_QUERY, (start_time, end_time, user, ))
-            total_mobile_results = cur.fetchall()
+        total_mobile_results = db_conn.executeAll(SELECT_QUERY, (start_time, end_time, user, ))
     except Exception as error:
         raise Exception (f"error while counting datas : {error}")
     finally:
         db_conn.put_db_connection(conn)
 
+    if len(total_mobile_results) == 0:
+        return  models.OneuserWholeTestSets()
+    
     user_whole_testsets = divide_test_sets(list(total_mobile_results), user)
 
     return user_whole_testsets

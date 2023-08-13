@@ -103,7 +103,7 @@ def save_until_yesterday_data(end_time: datetime, sector_key: str):
         
     is_updated = get_stats.check_yesterday_stats_exists(stats_DB_conn, 'time_to_first_fix', end_time)
     if is_updated == False:
-        stabilization_info = first_fix.get_phase_one_to_four_time(db_conn, one_day_whole_test_sets, start_time, end_time, 6)
+        stabilization_info = first_fix.calculate_time_to_first_fix(db_conn, one_day_whole_test_sets, start_time, end_time, 6)
         get_stats.insert_TTFF_stats(stats_DB_conn, stabilization_info)
         st.success('Updated until yesterday stats')
 
