@@ -27,6 +27,17 @@ class OneUserPositionErrTable:
     user_dist_diff: list[float] = field(default_factory=list)
 
 @dataclass
+class SampleOneUserPositionErrTable:
+    sector_id: int = 6
+    calc_date: datetime = datetime.now()
+    user_id: str = ""
+    threshold_10: float = 0.0
+    threshold_30: float = 0.0
+    threshold_50: float = 0.0
+    user_data_cnt: float = 0.0
+    user_dist_diff: list[float] = field(default_factory=list)
+
+@dataclass
 class OneUserTTFF:
     stabilization_time: timedelta = timedelta()
 
@@ -34,7 +45,7 @@ class OneUserTTFF:
 class TimeToFirstFix:
     sector_id: int = 6
     calc_date: datetime = datetime.now()
-    avg_stabilization_time: float = 0.0
+    avg_stabilization_time: list[float] = field(default_factory=list)
     hour_unit_ttff: list[float] = field(default_factory=list)
     user_count: int = 0
 
@@ -42,7 +53,7 @@ class TimeToFirstFix:
 class PositionTrajectory:
     sector_id: int = 0
     calc_date: datetime = datetime.now()
-    one_day_stat: OneUserPositionErrTable = OneUserPositionErrTable()
+    one_day_stat: OneUserPositionErrTable = field(default_factory=OneUserPositionErrTable)
     one_day_data_cnt: float = 0.0
 
 @dataclass
@@ -53,6 +64,15 @@ class DailyPED:
 class TestSet:
     start_time: datetime = datetime.now()
     end_time: datetime = datetime.now()
+
+@dataclass
+class SampleTimeToFirstFix:
+    sector_id: int = 6
+    user_id: str = ""
+    calc_date: datetime = datetime.now()
+    avg_stabilization_time: list[float] = field(default_factory=list)
+    hour_unit_ttff: list[float] = field(default_factory=list)
+    user_count: int = 0
 
 @dataclass
 class OneuserWholeTestSets:

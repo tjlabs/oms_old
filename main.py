@@ -3,8 +3,10 @@ from datetime import datetime, timedelta
 from utils import process_data
 from modules.manage_db.stats_db import statsdb, get_stats
 from modules.manage_db.where_db import basic_setting, postgresDBModule, position_err_dist, first_fix
+from models import models
 from modules.plot import plot_charts
 import numpy as np
+from zoneinfo import ZoneInfo
 
 db_conn = postgresDBModule.DBConnection()
 stats_DB_conn = statsdb.StatsDBConnection()
@@ -103,7 +105,18 @@ def save_until_yesterday_data(end_time: datetime, sector_key: str):
         
     is_updated = get_stats.check_yesterday_stats_exists(stats_DB_conn, 'time_to_first_fix', end_time)
     if is_updated == False:
-        stabilization_info = first_fix.calculate_time_to_first_fix(db_conn, one_day_whole_test_sets, start_time, end_time, 6)
+
+        daily_ttff, daily_cnt = first_fix.calculate_time_to_first_fix(db_conn, one_day_whole_test_sets, 24)
+        hour_ttff, daily_cnt = first_fix.calculate_time_to_first_fix(db_conn, one_day_whole_test_sets, 1)
+
+        stabilization_info = models.TimeToFirstFix(
+            sector_id=6,
+            calc_date=start_time,
+            avg_stabilization_time=daily_ttff/daily_cnt,
+            hour_unit_ttff=first_fix.average_hour_unit_data(hour_ttff, daily_cnt),
+            user_count=daily_cnt
+        )
+
         get_stats.insert_TTFF_stats(stats_DB_conn, stabilization_info)
         st.success('Updated until yesterday stats')
 
@@ -114,9 +127,9 @@ def load_webpage(utc_time: datetime):
         daily_ped_datas = get_stats.get_position_err_dist_stats(stats_DB_conn, utc_time)
         _, day = st.columns([4, 2])
         dates = day.radio('', ('7days', '14days', '30days'), key='LD', horizontal=True)
-        if len(daily_ped_datas) == 30 and dates != None:
+        if len(daily_ped_datas) == 11  and dates != None:
             date = int(dates[:-4])
-            daily_ped_datas = np.array(daily_ped_datas)[:date]
+            daily_ped_datas = np.array(daily_ped_datas)[:11]
             plot_charts.plot_position_loc_stats(daily_ped_datas)
 
     with ttff[0]:
@@ -124,18 +137,109 @@ def load_webpage(utc_time: datetime):
         daily_tf_datas = get_stats.get_TTFF(stats_DB_conn, utc_time)
         _, day = st.columns([4, 2])
         dates = day.radio('', ('7days', '14days', '30days'), key='TTFF', horizontal=True)
-        if len(daily_tf_datas) == 30 and dates != None:
+        if len(daily_tf_datas) == 8 and dates != None:
             date = int(dates[:-4])
-            daily_tf_datas = daily_tf_datas[:date]
+            daily_tf_datas = daily_tf_datas[:8]
             plot_charts.ttff_line_chart(daily_tf_datas)
 
 
+
+
+def get_ttff(user_id, start_time, end_time):
+    unit_ttff, unit_cnt = 0.0, 0.0
+    exists = first_fix.check_phase_four_exists(db_conn, user_id, start_time, end_time)
+    if not exists:
+        return "X"
+    test_sets = basic_setting.query_one_day_data(db_conn, user_id, start_time, end_time)
+    phase_one_time = test_sets.test_sets[0].start_time
+    phase_four_time = first_fix.get_phase_four_time(db_conn, start_time, end_time, user_id)
+    return first_fix.calculate_ttff(phase_one_time, phase_four_time)
+
 if __name__ == '__main__' :
-    set_page_title()
-    place_info = get_place_datas()
-    sector = extract_sectors(place_info)
-    sector_key = set_place_selection(place_info, sector)
-    start_time, end_time = get_current_time_and_json()
-    # save_until_yesterday_data(end_time, sector_key)
-    load_webpage(end_time)
+    # set_page_title()
+    # place_info = get_place_datas()
+    # sector = extract_sectors(place_info)
+    # sector_key = set_place_selection(place_info, sector)
+    # start_time, end_time = get_current_time_and_json()
+    # # save_until_yesterday_data(end_time, sector_key)
+    # load_webpage(end_time)
+
+    android_devices = ["s20u", "s20", "s22", "a53"]
+    ios_devices = ["iPhone13Pro", "iPhone12Pro", "iPhone12mini", "iPhoneX"]
+    android_timestamps = [
+        (datetime(2023, 8, 14, 11, 26, tzinfo=ZoneInfo('Asia/Seoul')),datetime(2023, 8, 14, 11, 48, tzinfo=ZoneInfo('Asia/Seoul'))),
+        (datetime(2023, 8, 14, 11, 47, tzinfo=ZoneInfo('Asia/Seoul')),datetime(2023, 8, 14, 11, 50, tzinfo=ZoneInfo('Asia/Seoul'))),
+        (datetime(2023, 8, 14, 11, 50, tzinfo=ZoneInfo('Asia/Seoul')),datetime(2023, 8, 14, 11, 52, tzinfo=ZoneInfo('Asia/Seoul'))),
+    ]
+    ios_timestamps = [
+        (datetime(2023, 8, 14, 10, 30, tzinfo=ZoneInfo('Asia/Seoul')),datetime(2023, 8, 14, 10, 50, tzinfo=ZoneInfo('Asia/Seoul'))),
+        (datetime(2023, 8, 14, 10, 51, tzinfo=ZoneInfo('Asia/Seoul')),datetime(2023, 8, 14, 10, 53, 10, tzinfo=ZoneInfo('Asia/Seoul'))),
+        (datetime(2023, 8, 14, 10, 53, 10, tzinfo=ZoneInfo('Asia/Seoul')),datetime(2023, 8, 14, 10, 58, tzinfo=ZoneInfo('Asia/Seoul'))),
+    ]
+    for android_device in android_devices:
+        for i in range(3):
+            res = get_ttff(android_device, android_timestamps[i][0], android_timestamps[i][1])
+            print(f"{android_device} in test {i}: {res}")
+    for ios_device in ios_devices:
+        for i in range(3):
+            res = get_ttff(ios_device, ios_timestamps[i][0], ios_timestamps[i][1])
+            print(f"{ios_device} in test {i}: {res}")    
+
+    
+
+
+    # desired_hour = 2  # 시
+    # desired_minute = 0  # 분
+    # desired_second = 0  # 초
+
+    # # 현재 날짜와 시간을 가져옵니다.
+    # current_time = datetime.now()
+
+    # # 원하는 시간을 설정합니다.
+    # start_time = current_time.replace(hour=desired_hour, minute=desired_minute, second=desired_second)
+
+
+    # desired_hour = 3  # 시
+    # desired_minute = 0  # 분
+    # desired_second = 0  # 초
+
+    # # 현재 날짜와 시간을 가져옵니다.
+    # current_time = datetime.now()
+
+    # # 원하는 시간을 설정합니다.
+    # end_time = current_time.replace(hour=desired_hour, minute=desired_minute, second=desired_second)
+
+    # users = basic_setting.select_user_ids(db_conn, 6, start_time, end_time)
+
+
+    # one_day_whole_test_sets = []
+
+    # for user in users:
+    #     if user != 's20u':
+    #         continue
+    #     total_count = basic_setting.count_mobile_results(db_conn, 6, user, start_time, end_time)
+        # user_whole_testsets = basic_setting.query_one_day_data(db_conn, user, start_time, end_time)
+        # one_day_whole_test_sets.append(user_whole_testsets)
+
+
+
+
+    # del one_day_whole_test_sets[6].test_sets[0]
+    
+
+        # daily_ttff, daily_cnt = first_fix.calculate_time_to_first_fix(db_conn, one_day_whole_test_sets, user, 24)
+        # hour_ttff, daily_cnt = first_fix.calculate_time_to_first_fix(db_conn, one_day_whole_test_sets, user, 1)
+
+        # stabilization_info = models.TimeToFirstFix(
+        #     sector_id=6,
+        #     calc_date=start_time,
+        #     avg_stabilization_time=daily_ttff/daily_cnt,
+        #     hour_unit_ttff=first_fix.average_hour_unit_data(hour_ttff, daily_cnt),
+        #     user_count=daily_cnt
+        # )
+
+    # get_stats.insert_TTFF_stats(stats_DB_conn, stabilization_info)
+
+
+
 

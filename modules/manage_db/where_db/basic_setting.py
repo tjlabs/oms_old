@@ -120,16 +120,16 @@ def select_user_ids(db_conn: postgresDBModule.DBConnection, sector_id, start_tim
 
     return user_ids
 
-def count_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id, start_time, end_time):
+def count_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id, user, start_time, end_time):
     SELECT_QUERY = """SELECT COUNT(*)
-                    FROM mobile_results
-                    WHERE sector_id = %s
+                    FROM request_outputs
+                    WHERE user_id = %s
                     AND mobile_time >= %s AND mobile_time < %s
                     """
     conn = db_conn.get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(SELECT_QUERY, (sector_id, start_time, end_time, ))
+            cur.execute(SELECT_QUERY, (user, start_time, end_time, ))
             total_count = cur.fetchone()[0]
     except Exception as error:
         raise Exception (f"error while counting datas : {error}")
@@ -140,7 +140,7 @@ def count_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id, star
 
 # sector_id 연계해서 언젠간 작성해야 함
 def query_one_day_data(db_conn: postgresDBModule.DBConnection, user: str, start_time: datetime, end_time: datetime) -> models.OneuserWholeTestSets:
-    SELECT_QUERY = """SELECT mobile_time, index
+    SELECT_QUERY = """SELECT mobile_time, index, building_name
                     FROM request_outputs
                     WHERE mobile_time >= %s AND mobile_time < %s
                     AND user_id = %s
@@ -162,7 +162,8 @@ def query_one_day_data(db_conn: postgresDBModule.DBConnection, user: str, start_
     return user_whole_testsets
 
 def divide_test_sets(total_mobile_results: list, user: str) -> models.OneuserWholeTestSets:
-    prev_db_idx: int = 0
+    prev_db_idx: int = total_mobile_results[0][1]
+    prev_db_building: str = ""
     user_whole_testsets = models.OneuserWholeTestSets(
         user_id = user
     )
@@ -171,19 +172,31 @@ def divide_test_sets(total_mobile_results: list, user: str) -> models.OneuserWho
     )
     retest = False
     for idx, data in enumerate(total_mobile_results):
+        if prev_db_building != "" and data[2] == "" or idx == 0:
+            end = data[0]
+        if prev_db_building == "" and data[2] != "":
+            test = models.TestSet(
+                start_time=data[0],
+                end_time= end
+            )
+            user_whole_testsets.test_sets.append(test)
+            prev_db_building = str(data[2])
+
         if int(data[1]) < prev_db_idx:
             test.end_time = total_mobile_results[idx-1][0]
             user_whole_testsets.test_sets.append(test)
             test = models.TestSet(
-                start_time=data[0]
+                    start_time=data[0]
             )
             prev_db_idx = int(data[1])
+            prev_db_building = str(data[2])
             retest = True
             continue
 
         prev_db_idx = int(data[1])
+        prev_db_building = str(data[2])
 
-    if retest == False:
+    if retest == False or idx == len(total_mobile_results)-1:
         test.end_time = total_mobile_results[-1][0]
         user_whole_testsets.test_sets.append(test)
 

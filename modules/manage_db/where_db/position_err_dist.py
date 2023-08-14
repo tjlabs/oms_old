@@ -9,6 +9,7 @@ def get_positiong_error_distance(db_conn: postgresDBModule.DBConnection, one_day
 
     for one_user in one_day_whole_test_sets:
         for one_test in one_user.test_sets:
+
             whole_coords = get_user_whole_coords(db_conn, sector_id, one_user.user_id, one_test.start_time, one_test.end_time)
             diff_dist = calculate.calc_coord_diff(whole_coords)
             threshold_err_ratio: models.OneUserPositionErrTable = calculate.calc_err_frequency(diff_dist)
