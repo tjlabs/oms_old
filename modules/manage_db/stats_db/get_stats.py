@@ -94,12 +94,12 @@ def insert_position_err_stats(stats_DB_conn: StatsDBConnection, one_day_trajecto
     return 
 
 def get_position_err_dist_stats(stats_DB_conn: StatsDBConnection, calc_date: datetime) -> tuple:
-    SELECT_QUERY = """ SELECT user_id, calc_date, calc_data_num, threshold_010, threshold_030, threshold_050
-                        FROM test_location_difference
+    SELECT_QUERY = """ SELECT calc_date, calc_data_num, threshold_10, threshold_30, threshold_50
+                        FROM location_difference
+                        WHERE calc_date < %s
                         ORDER BY calc_date DESC
                         LIMIT 30"""
-    #                         WHERE calc_date < %s
-    
+                    
     conn = stats_DB_conn.get_stats_connection()
     result_list = []
 
@@ -118,8 +118,9 @@ def get_position_err_dist_stats(stats_DB_conn: StatsDBConnection, calc_date: dat
     return daily_stats
 
 def get_TTFF(stats_DB_conn: StatsDBConnection, calc_date: datetime) -> tuple:
-    SELECT_QUERY = """ SELECT user_id, calc_date, daily_avg_ttff, hour_unit_ttff, users_count
-                        FROM test_time_to_first_fix
+    SELECT_QUERY = """ SELECT calc_date, daily_avg_ttff, hour_unit_ttff, users_count
+                        FROM time_to_first_fix
+                        WHERE calc_date < %s
                         ORDER BY calc_date DESC
                         LIMIT 30"""
     
@@ -136,16 +137,16 @@ def get_TTFF(stats_DB_conn: StatsDBConnection, calc_date: datetime) -> tuple:
 
     return daily_stats
 
-def insert_TTFF_stats(stats_DB_conn: StatsDBConnection, stabilization_info: models.SampleTimeToFirstFix):
-    INSERT_QUERY = """INSERT INTO test_time_to_first_fix (sector_id, user_id, calc_date, daily_avg_ttff,
-                    hour_unit_ttff, users_count) VALUES (%s, %s, %s, %s, %s, %s) """
+def insert_TTFF_stats(stats_DB_conn: StatsDBConnection, stabilization_info: models.TimeToFirstFix):
+    INSERT_QUERY = """INSERT INTO time_to_first_fix (sector_id, calc_date, daily_avg_ttff,
+                    hour_unit_ttff, users_count) VALUES (%s, %s, %s, %s, %s) """
 
     conn = stats_DB_conn.get_stats_connection()
 
     try:
         with conn.cursor() as cur:
-            cur.execute(INSERT_QUERY, (stabilization_info.sector_id, stabilization_info.user_id, stabilization_info.calc_date,
-                                        stabilization_info.avg_stabilization_time[0], stabilization_info.hour_unit_ttff, 
+            cur.execute(INSERT_QUERY, (stabilization_info.sector_id, stabilization_info.calc_date,
+                                        stabilization_info.avg_stabilization_time, stabilization_info.hour_unit_ttff, 
                                         stabilization_info.user_count, ))
     except Exception as error:
         raise Exception (f"error while checking tables: {error}")

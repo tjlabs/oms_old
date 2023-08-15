@@ -120,7 +120,7 @@ def select_user_ids(db_conn: postgresDBModule.DBConnection, sector_id, start_tim
 
     return user_ids
 
-def count_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id, user, start_time, end_time):
+def count_request_outputs(db_conn: postgresDBModule.DBConnection, user, start_time, end_time):
     SELECT_QUERY = """SELECT COUNT(*)
                     FROM request_outputs
                     WHERE user_id = %s
@@ -139,7 +139,7 @@ def count_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id, user
     return total_count
 
 # sector_id 연계해서 언젠간 작성해야 함
-def query_one_day_data(db_conn: postgresDBModule.DBConnection, user: str, start_time: datetime, end_time: datetime) -> models.OneuserWholeTestSets:
+def get_whole_request_output_data(db_conn: postgresDBModule.DBConnection, user: str, start_time: datetime, end_time: datetime) -> models.OneuserWholeTestSets:
     SELECT_QUERY = """SELECT mobile_time, index, building_name
                     FROM request_outputs
                     WHERE mobile_time >= %s AND mobile_time < %s
@@ -157,47 +157,38 @@ def query_one_day_data(db_conn: postgresDBModule.DBConnection, user: str, start_
     if len(total_mobile_results) == 0:
         return  models.OneuserWholeTestSets()
     
-    user_whole_testsets = divide_test_sets(list(total_mobile_results), user)
-
-    return user_whole_testsets
+    return divide_test_sets(total_mobile_results, user)
 
 def divide_test_sets(total_mobile_results: list, user: str) -> models.OneuserWholeTestSets:
-    prev_db_idx: int = total_mobile_results[0][1]
-    prev_db_building: str = ""
-    user_whole_testsets = models.OneuserWholeTestSets(
-        user_id = user
+    test = models.TestSet()
+    whole_testsets = models.OneuserWholeTestSets(
+        user_id=user
     )
-    test = models.TestSet(
-        start_time=total_mobile_results[0][0]
-    )
-    retest = False
-    for idx, data in enumerate(total_mobile_results):
-        if prev_db_building != "" and data[2] == "" or idx == 0:
-            end = data[0]
-        if prev_db_building == "" and data[2] != "":
-            test = models.TestSet(
-                start_time=data[0],
-                end_time= end
-            )
-            user_whole_testsets.test_sets.append(test)
-            prev_db_building = str(data[2])
+    first_time_set, next_test_set = False, False
+    prev_db_idx: int = -1 
 
-        if int(data[1]) < prev_db_idx:
-            test.end_time = total_mobile_results[idx-1][0]
-            user_whole_testsets.test_sets.append(test)
-            test = models.TestSet(
-                    start_time=data[0]
-            )
-            prev_db_idx = int(data[1])
-            prev_db_building = str(data[2])
-            retest = True
+    for idx, data in enumerate(total_mobile_results):
+        if first_time_set == False and data[2] != "":
+            test.start_time = data[0]
+            first_time_set = True
+            prev_db_idx = data[1]
             continue
 
-        prev_db_idx = int(data[1])
-        prev_db_building = str(data[2])
+        if data[1] < prev_db_idx:
+            test.end_time = total_mobile_results[idx-1][0]
+            if test.start_time != test.end_time:
+                whole_testsets.test_sets.append(test)
+            test = models.TestSet(
+                start_time=data[0]
+            )
+            next_test_set = True
+        
+        prev_db_idx = data[1]
 
-    if retest == False or idx == len(total_mobile_results)-1:
-        test.end_time = total_mobile_results[-1][0]
-        user_whole_testsets.test_sets.append(test)
+        if idx == len(total_mobile_results)-1:
+            if first_time_set or next_test_set:
+                test.end_time = data[0]
+                if test.start_time != test.end_time:
+                    whole_testsets.test_sets.append(test)
 
-    return user_whole_testsets
+    return whole_testsets
