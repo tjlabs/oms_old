@@ -26,18 +26,6 @@ def divide_levels(levels_list: list) -> list:
         result_list.append(temp_list)
     return result_list
 
-def change_time_format_to_postgresdb(utc_time: datetime) -> tuple[datetime, datetime]:
-
-    if utc_time.hour < 15:
-        utc_time -= timedelta(days=1)
-        end_time = utc_time.replace(hour=15, minute=0, second=0)
-
-    else:
-        end_time = utc_time.replace(hour=15, minute=0, second=0)
-
-    start_time = end_time - timedelta(days=1)
-    return start_time, end_time
-
 def convert_date_format(dates: np.ndarray) -> list:
         formatted_dates = np.vectorize(lambda x: x.strftime("%m-%d"))(dates)
         converted_dates = [date_str for date_str in formatted_dates]

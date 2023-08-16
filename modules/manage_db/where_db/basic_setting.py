@@ -192,3 +192,19 @@ def divide_test_sets(total_mobile_results: list, user: str) -> models.OneuserWho
                     whole_testsets.test_sets.append(test)
 
     return whole_testsets
+
+def get_whole_calc_time(db_conn: postgresDBModule.DBConnection, start_time: datetime, end_time: datetime) -> tuple:
+    SELECT_QUERY = """SELECT mobile_time, calculated_time
+                    FROM request_outputs
+                    WHERE mobile_time >= %s AND mobile_time < %s
+                    ORDER BY mobile_time
+                    """
+    conn = db_conn.get_db_connection()
+    try:
+        whole_calc_times = db_conn.executeAll(SELECT_QUERY, (start_time, end_time, ))
+    except Exception as error:
+        raise Exception (f"error while counting datas : {error}")
+    finally:
+        db_conn.put_db_connection(conn)
+    
+    return whole_calc_times

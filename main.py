@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 from utils import process_data
 from modules.manage_db.stats_db import statsdb, get_stats
-from modules.manage_db.where_db import basic_setting, postgresDBModule, position_err_dist, first_fix
+from modules.manage_db.where_db import basic_setting, postgresDBModule, position_err_dist, first_fix, response_trans_t
 from models import models
 from modules.plot import plot_charts
 import numpy as np
@@ -80,11 +80,10 @@ def select_level(sector_key: str, building_idx: int, place_info) -> str:
 
 @st.cache_data
 def get_current_time_and_json() -> tuple[datetime, datetime]: 
-    utc_time = datetime.utcnow()
-    today_date = utc_time.strftime('%Y-%m-%d %H:%M:%S')
-
-    start_time, end_time = process_data.change_time_format_to_postgresdb(utc_time)
-    return start_time, end_time
+    current_time_seoul = datetime.now(ZoneInfo('Asia/Seoul'))
+    current_time_seoul_zeroed = current_time_seoul.replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = current_time_seoul_zeroed - timedelta(days=1)
+    return current_time_seoul_zeroed, yesterday
         
 @st.cache_data
 def save_until_yesterday_data(end_time: datetime, sector_key: str):
@@ -110,7 +109,7 @@ def save_until_yesterday_data(end_time: datetime, sector_key: str):
         st.success('Updated until yesterday stats')
 
 def load_webpage(utc_time: datetime):
-    ped, ttff = st.columns([1]), st.columns([1])
+    ped, ttff, rtt = st.columns([1]), st.columns([1]), st.columns([1])
 
     with ped[0]:
         daily_ped_datas = get_stats.get_position_err_dist_stats(stats_DB_conn, utc_time)
@@ -131,11 +130,24 @@ def load_webpage(utc_time: datetime):
             daily_tf_datas = daily_tf_datas[:date]
             plot_charts.scatter_avg_ttff(daily_tf_datas)
 
+    with rtt[0]:
+        daily_rtt_datas = None
+
 if __name__ == '__main__' :
-    set_page_title()
-    place_info = get_place_datas()
-    sector = extract_sectors(place_info)
-    sector_key = set_place_selection(place_info, sector)
-    start_time, end_time = get_current_time_and_json()
-    # save_until_yesterday_data(end_time, sector_key)
-    load_webpage(end_time)
+    # set_page_title()
+    # place_info = get_place_datas()
+    # sector = extract_sectors(place_info)
+    # sector_key = set_place_selection(place_info, sector)
+    # start_time, end_time = get_current_time_and_json()
+    # # save_until_yesterday_data(end_time, sector_key)
+    # load_webpage(end_time)
+
+    current_time_seoul = datetime.now(ZoneInfo('Asia/Seoul'))
+    current_time_seoul_zeroed = current_time_seoul.replace(month=6, day=2, hour=0, minute=0, second=0, microsecond=0)
+    yesterday = current_time_seoul_zeroed - timedelta(days=1)
+
+    whole_calc_times = basic_setting.get_whole_calc_time(db_conn, yesterday, current_time_seoul_zeroed)
+    response_trans_t.avg_on_minute(whole_calc_times, 1)
+    response_trans_t.avg_on_minute(whole_calc_times, 60)
+    response_trans_t.avg_on_minute(whole_calc_times, 1440)
+    

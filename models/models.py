@@ -2,6 +2,8 @@ from dataclasses import field, dataclass
 from datetime import timedelta
 from datetime import datetime
 
+from numpy import quantile
+
 @dataclass
 class OneDayInfo:
     start_time: str = ""
@@ -20,17 +22,6 @@ class Coordinates:
 
 @dataclass
 class OneUserPositionErrTable:
-    threshold_10: float = 0.0
-    threshold_30: float = 0.0
-    threshold_50: float = 0.0
-    user_data_cnt: float = 0.0
-    user_dist_diff: list[float] = field(default_factory=list)
-
-@dataclass
-class SampleOneUserPositionErrTable:
-    sector_id: int = 6
-    calc_date: datetime = datetime.now()
-    user_id: str = ""
     threshold_10: float = 0.0
     threshold_30: float = 0.0
     threshold_50: float = 0.0
@@ -66,15 +57,14 @@ class TestSet:
     end_time: datetime = datetime.now()
 
 @dataclass
-class SampleTimeToFirstFix:
-    sector_id: int = 6
-    user_id: str = ""
-    calc_date: datetime = datetime.now()
-    avg_stabilization_time: list[float] = field(default_factory=list)
-    hour_unit_ttff: list[float] = field(default_factory=list)
-    user_count: int = 0
-
-@dataclass
 class OneuserWholeTestSets:
     test_sets: list[TestSet] = field(default_factory=list)
     user_id: str = ""
+
+@dataclass
+class ResponseTransmissionTime:
+    quantile_half: list = field(default_factory=list)
+    quantile_90th: list = field(default_factory=list)
+    quantile_95th: list = field(default_factory=list)
+    avg_rtt: list = field(default_factory=list)
+    time_interval: int = 0
