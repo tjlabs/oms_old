@@ -8,7 +8,7 @@ from utils import process_data
 import altair as alt
 
 def plot_position_loc_stats(daily_ped_datas: np.ndarray):
-    th_10 = [65- data[2] - data[3] - data[4] for data in daily_ped_datas]
+    th_10 = [80- data[2] - data[3] - data[4] for data in daily_ped_datas]
     dates = process_data.convert_date_format(daily_ped_datas[:, 0])
 
     ped_data_frame = pd.DataFrame({
@@ -36,7 +36,7 @@ def plot_position_loc_stats(daily_ped_datas: np.ndarray):
 
     bar = alt.Chart(melted_data).mark_bar(size=2000/len(melted_data)).encode(
         x=alt.X('dates:T', sort=dates),
-        y=alt.Y('value:Q', title='Location Difference', scale=alt.Scale(domain=[0, 10])),
+        y=alt.Y('value:Q', title='Location Difference', scale=alt.Scale(domain=[0, 20])),
         color=alt.Color('threshold:N', scale=color_scale),
         tooltip=['value', 'threshold']
     ).properties(
@@ -82,3 +82,63 @@ def scatter_avg_ttff(daily_tf_datas: tuple):
     )
 
     st.altair_chart(dot_chart, use_container_width=True) # type: ignore
+
+def scatter_avg_ltt(daily_ltt_datas: tuple):
+    avg_time = [item[1]/1000 for item in daily_ltt_datas]
+    dates = [item[0] for item in daily_ltt_datas]
+    dates = process_data.convert_date_format(np.array(dates))
+
+    ltt_data_frame = pd.DataFrame({
+        'dates': dates,
+        'avg location track time': avg_time,
+    })
+
+    line_chart = alt.Chart(ltt_data_frame).mark_line(size=5,
+        color='blue'
+    ).encode(
+        x=alt.X('dates:T', sort=dates),
+        y='avg location track time:Q'
+    ).interactive().properties(
+        title=alt.TitleParams(text="Location Tracking Time", fontSize=20)
+    )
+
+    st.altair_chart(line_chart, use_container_width=True) # type: ignore
+import datetime
+def one_day_ltt(daily_ltt_datas: tuple):
+    q_50, q_90, q_95 = daily_ltt_datas[0][2], daily_ltt_datas[0][3], daily_ltt_datas[0][4]
+
+    # 각 원소를 1000으로 나눈 값으로 업데이트
+    q_50 = [x / 1000 for x in q_50]
+    q_90 = [x / 1000 for x in q_90]
+    q_95 = [x / 1000 for x in q_95]
+    
+    
+    dates = daily_ltt_datas[0][0]
+
+    # numpy_str = np.array(['2023-08-15'], dtype=np.str_)
+
+    # datetime_obj = datetime.datetime.strptime(numpy_str[0], '%Y-%m-%d')
+    # formatted_date = datetime_obj.strftime('%m-%d')
+    dates = []
+    for i in range(len(q_95)):
+        dates.append(str(i))
+
+    ltt_data_frame = pd.DataFrame({
+        'dates': dates,
+        'quant_50': q_50,
+        'quant_90': q_90,
+        'quant_95': q_95
+    })
+
+    # 데이터를 'long' 형태로 변환하여 모든 퀀타일 값을 하나의 열로 모읍니다.
+    ltt_data_frame_long = ltt_data_frame.melt(id_vars=['dates'], value_vars=['quant_50', 'quant_90', 'quant_95'])
+
+    line_chart = alt.Chart(ltt_data_frame_long).mark_line(size=5).encode(
+        x=alt.X('dates:T'),
+        y=alt.Y('value:Q', title='Avg Location Track Time'),
+        color=alt.Color('variable:N', title='Quantile', scale=alt.Scale(domain=['quant_50', 'quant_90', 'quant_95'], range=['blue', 'green', 'red']))
+    ).properties(
+        title=alt.TitleParams(text="Location Tracking Time", fontSize=20)
+    )
+
+    st.altair_chart(line_chart, use_container_width=True)

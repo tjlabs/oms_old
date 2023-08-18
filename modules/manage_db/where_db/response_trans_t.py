@@ -1,54 +1,45 @@
 from datetime import timedelta
-from datetime import datetime
+import numpy as np
+from models import models
+from collections import defaultdict
 
 def avg_on_minute(whole_calc_times: tuple, interval: int):
-    prev_time = datetime.now()
-    total_calc_time = timedelta()
-    unit_data = []
-    cnt = 0
-    min_log_calc_time = [timedelta()]*24*(60//interval)
-    interval_str: str = ""
+    first_time, unit_data = None, []
+    total_calc_time, cnt = timedelta(), 0
+    quantile_stats = models.LocationTrackingTime()
+    min_log_calc_time = [timedelta]*(1440//interval)
 
-    total_seconds = set_interval(interval)
     for idx, calc_time in enumerate(whole_calc_times):
-        if idx == 0:
-            interval_str = set_compare_element(total_seconds, calc_time)
+        if first_time == None:
+            first_time = calc_time[0]
+            unit_data.append(calc_time[1])
             total_calc_time += calc_time[1]
-            prev_time = calc_time[0]
+            cnt += 1
             continue
 
-        if interval_str == 'hour':
-            if prev_time.hour != calc_time[0].hour or idx == len(whole_calc_times)-1:
-                # 95,90분위수 저장
-                average_timedelta = total_calc_time // cnt
-                min_log_calc_time[prev_time.hour] = average_timedelta
-                total_calc_time = timedelta()
-                cnt = 0
-        elif interval_str == 'minute':
-            if prev_time.minute != calc_time[0].minute:
-                average_timedelta = total_calc_time // cnt
-                min_log_calc_time[calc_time[0].hour*60 + calc_time[0].minute] = average_timedelta
-                total_calc_time = timedelta()
-                cnt = 0
-        elif idx == len(whole_calc_times)-1:
-            min_log_calc_time.append(total_calc_time // cnt)
+        if abs(first_time.minute - calc_time[0].minute) >= interval or idx == len(whole_calc_times)-1:
+            average_timedelta = total_calc_time // cnt
+            if first_time.minute not in min_log_calc_time:
+                min_log_calc_time[first_time.minute] = average_timedelta.microseconds/1000
+            total_calc_time, cnt = timedelta(), 0
+            first_time = calc_time[0]
+            quantile_stats.quantile_50th.append(np.percentile(unit_data, 50).microseconds/1000)
+            quantile_stats.quantile_90th.append(np.percentile(unit_data, 90).microseconds/1000)
+            quantile_stats.quantile_95th.append(np.percentile(unit_data, 95).microseconds/1000)
 
-        unit_data.append(calc_time[0])
-        prev_time = calc_time[0]
+        unit_data.append(calc_time[1])
         total_calc_time += calc_time[1]
         cnt += 1
 
-    return min_log_calc_time
+    quantile_stats.min_avg_ltt = min_log_calc_time
+    return quantile_stats
 
-def set_interval(interval: int) -> float:
-    time_interval = timedelta(minutes=interval)
-    return time_interval.total_seconds()
-
-def set_compare_element(total_seconds: float, calc_time: tuple) -> str:
-    if total_seconds == 3600:
-        return 'hour'
-    elif total_seconds == 60:
-        return 'minute'
-    else:
-        return 'day'
+def avg_day(whole_calc_times: tuple):
+    total_calc_time, cnt = timedelta(), 0
+    for calc_time in whole_calc_times:
+        total_calc_time += calc_time[1]
+        cnt += 1
+    if cnt == 0 :
+        return 0.0
+    return (total_calc_time / cnt).microseconds/1000
 

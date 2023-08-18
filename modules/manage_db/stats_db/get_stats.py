@@ -25,7 +25,7 @@ def get_tables(stats_DB_conn: StatsDBConnection) -> list:
     return table_list
 
 def delete_row(stats_DB_conn: StatsDBConnection, id: int):
-    DELETE_QUERY =  """DELETE FROM location_difference WHERE id = %s"""
+    DELETE_QUERY =  """DELETE FROM location_tracking_time WHERE id = %s"""
 
     conn = stats_DB_conn.get_stats_connection()
 
@@ -58,7 +58,7 @@ def update_row(stats_DB_conn: StatsDBConnection, date: models.PositionTrajectory
 def check_yesterday_stats_exists(stats_DB_conn: StatsDBConnection, table_name: str, end_time: datetime) -> bool:
     EXIST_QUERY = """SELECT EXISTS (SELECT calc_date
                     FROM {}
-                    WHERE calc_date<%s
+                    WHERE calc_date=%s
                     ) AS exists_flag"""
     
     conn = stats_DB_conn.get_stats_connection()
@@ -75,15 +75,15 @@ def check_yesterday_stats_exists(stats_DB_conn: StatsDBConnection, table_name: s
     return exists
 
 def insert_position_err_stats(stats_DB_conn: StatsDBConnection, one_day_trajectory: models.PositionTrajectory):
-    INSERT_QUERY = """INSERT INTO test_location_difference (sector_id, user_id, calc_date, calc_data_num,
-                    threshold_010, threshold_030, threshold_050) VALUES (%s, %s, %s, %s, %s, %s, %s) """
+    INSERT_QUERY = """INSERT INTO location_difference (sector_id, calc_date, calc_data_num,
+                    threshold_10, threshold_30, threshold_50) VALUES (%s, %s, %s, %s, %s, %s) """
 
     conn = stats_DB_conn.get_stats_connection()
 
     try:
         with conn.cursor() as cur:
-            cur.execute(INSERT_QUERY, (one_day_trajectory.sector_id, "total",  one_day_trajectory.calc_date,
-                                        one_day_trajectory.one_day_stat.user_data_cnt, one_day_trajectory.one_day_stat.threshold_10,
+            cur.execute(INSERT_QUERY, (one_day_trajectory.sector_id, one_day_trajectory.calc_date,
+                                        one_day_trajectory.one_day_data_cnt, one_day_trajectory.one_day_stat.threshold_10,
                                         one_day_trajectory.one_day_stat.threshold_30, one_day_trajectory.one_day_stat.threshold_50, ))
     except Exception as error:
         raise Exception (f"error while checking tables: {error}")
@@ -117,7 +117,7 @@ def get_position_err_dist_stats(stats_DB_conn: StatsDBConnection, calc_date: dat
 
     return daily_stats
 
-def get_TTFF(stats_DB_conn: StatsDBConnection, calc_date: datetime) -> tuple:
+def get_ttff(stats_DB_conn: StatsDBConnection, calc_date: datetime) -> tuple:
     SELECT_QUERY = """ SELECT calc_date, daily_avg_ttff, hour_unit_ttff, users_count
                         FROM time_to_first_fix
                         WHERE calc_date < %s
@@ -137,7 +137,27 @@ def get_TTFF(stats_DB_conn: StatsDBConnection, calc_date: datetime) -> tuple:
 
     return daily_stats
 
-def insert_TTFF_stats(stats_DB_conn: StatsDBConnection, stabilization_info: models.TimeToFirstFix):
+def get_ltt(stats_DB_conn, calc_date: datetime):
+    SELECT_QUERY = """ SELECT calc_date, avg_loc_track_time, quantile_50th, quantile_90th, quantile_95th
+                        FROM location_tracking_time
+                        WHERE calc_date < %s
+                        ORDER BY calc_date DESC
+                        LIMIT 30"""
+    
+    conn = stats_DB_conn.get_stats_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(SELECT_QUERY, (calc_date, ))
+            daily_ltt_stats = cur.fetchall()
+    except Exception as error:
+        raise Exception (f"error while checking tables: {error}")
+    finally:
+        stats_DB_conn.put_stats_connection(conn)
+
+    return daily_ltt_stats
+
+def insert_ttff_stats(stats_DB_conn: StatsDBConnection, stabilization_info: models.TimeToFirstFix):
     INSERT_QUERY = """INSERT INTO time_to_first_fix (sector_id, calc_date, daily_avg_ttff,
                     hour_unit_ttff, users_count) VALUES (%s, %s, %s, %s, %s) """
 
@@ -148,6 +168,22 @@ def insert_TTFF_stats(stats_DB_conn: StatsDBConnection, stabilization_info: mode
             cur.execute(INSERT_QUERY, (stabilization_info.sector_id, stabilization_info.calc_date,
                                         stabilization_info.avg_stabilization_time, stabilization_info.hour_unit_ttff, 
                                         stabilization_info.user_count, ))
+    except Exception as error:
+        raise Exception (f"error while checking tables: {error}")
+    finally:
+        conn.commit()
+        stats_DB_conn.put_stats_connection(conn)
+
+    return 
+
+def insert_loc_track_time_stats(stats_DB_conn: StatsDBConnection, quantile_stats: models.LocationTrackingTime):
+    INSERT_QUERY = """INSERT INTO location_tracking_time (calc_date, avg_loc_track_time, quantile_50th, quantile_90th, quantile_95th)
+                    VALUES (%s, %s, %s, %s, %s) """
+    conn = stats_DB_conn.get_stats_connection()
+                                       
+    try:
+        with conn.cursor() as cur:
+            cur.execute(INSERT_QUERY, (quantile_stats.calc_date, quantile_stats.avg_loc_track_time, quantile_stats.quantile_50th, quantile_stats.quantile_90th, quantile_stats.quantile_95th,))
     except Exception as error:
         raise Exception (f"error while checking tables: {error}")
     finally:

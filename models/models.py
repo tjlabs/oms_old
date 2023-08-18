@@ -1,8 +1,7 @@
 from dataclasses import field, dataclass
 from datetime import timedelta
 from datetime import datetime
-
-from numpy import quantile
+from collections import defaultdict
 
 @dataclass
 class OneDayInfo:
@@ -16,9 +15,11 @@ class DiscoveredDevice:
     device_model: str = ""
 
 @dataclass
-class Coordinates:
+class CoordinatesWithIsindoor:
     x: int = 0
     y: int = 0
+    is_indoor: bool = False
+    mobile_time: datetime = datetime.now()
 
 @dataclass
 class OneUserPositionErrTable:
@@ -62,9 +63,11 @@ class OneuserWholeTestSets:
     user_id: str = ""
 
 @dataclass
-class ResponseTransmissionTime:
-    quantile_half: list = field(default_factory=list)
+class LocationTrackingTime:
+    calc_date: datetime = datetime.now()
+    avg_loc_track_time: float = 0.0
+    quantile_50th: list = field(default_factory=list)
     quantile_90th: list = field(default_factory=list)
     quantile_95th: list = field(default_factory=list)
-    avg_rtt: list = field(default_factory=list)
-    time_interval: int = 0
+    min_avg_ltt: list = field(default_factory=list)
+    

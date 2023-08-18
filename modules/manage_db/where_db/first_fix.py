@@ -2,7 +2,7 @@ from datetime import datetime
 from models import models
 from modules.manage_db.where_db import postgresDBModule
 
-def calculate_time_to_first_fix(db_conn: postgresDBModule.DBConnection, one_day_whole_test_sets: list) -> models.TimeToFirstFix:
+def calculate_time_to_first_fix(db_conn: postgresDBModule.DBConnection, one_day_whole_test_sets: list, start_time: datetime) -> models.TimeToFirstFix:
     unit_ttff, unit_cnt = [0.0]*24, [0.0]*24
     total_ttff, cnt = 0, 0
 
@@ -24,12 +24,14 @@ def calculate_time_to_first_fix(db_conn: postgresDBModule.DBConnection, one_day_
             unit_ttff[one_test.start_time.hour] += ttff
             unit_cnt[one_test.start_time.hour] += 1
 
+    if total_ttff == 0:
+        return models.TimeToFirstFix()
+
     stabilization_info = models.TimeToFirstFix(
         sector_id=6,
-        calc_date=one_day_whole_test_sets[0].test_sets[0].start_time,
         avg_stabilization_time=total_ttff/cnt,
         hour_unit_ttff=average_hour_unit_data(unit_ttff, unit_cnt),
-        user_count=len(one_day_whole_test_sets)
+        user_count=cnt
     )
 
     return stabilization_info
@@ -43,7 +45,7 @@ def average_hour_unit_data(hour_unit_ttff: list[float], hour_unit_cnt: list[floa
     for idx in range(len(hour_unit_ttff)):
         if hour_unit_cnt[idx] == 0:
             continue
-        hour_unit_ttff[idx] /= hour_unit_cnt[idx]
+        hour_unit_ttff[idx] = round(hour_unit_ttff[idx] / hour_unit_cnt[idx], 3)
     return hour_unit_ttff
 
 def check_phase_four_exists(db_conn: postgresDBModule.DBConnection, user: str, start_time: datetime, end_time: datetime) -> bool:
@@ -75,7 +77,7 @@ def check_phase_four_exists(db_conn: postgresDBModule.DBConnection, user: str, s
 def get_phase_four_time(db_conn: postgresDBModule.DBConnection, phase_one_time: datetime, end_time: datetime, user: str) -> datetime:
     SELECT_QUERY = """SELECT mobile_time FROM request_outputs
                     WHERE mobile_time >= %s
-                    AND mobile_time < %s
+                    AND mobile_time <= %s
                     AND user_id = %s
                     AND phase = 4
                     ORDER BY mobile_time

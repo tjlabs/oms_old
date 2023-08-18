@@ -120,7 +120,7 @@ def select_user_ids(db_conn: postgresDBModule.DBConnection, sector_id, start_tim
 
     return user_ids
 
-def count_request_outputs(db_conn: postgresDBModule.DBConnection, user, start_time, end_time):
+def count_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id, user, start_time, end_time):
     SELECT_QUERY = """SELECT COUNT(*)
                     FROM request_outputs
                     WHERE user_id = %s
@@ -139,8 +139,8 @@ def count_request_outputs(db_conn: postgresDBModule.DBConnection, user, start_ti
     return total_count
 
 # sector_id 연계해서 언젠간 작성해야 함
-def get_whole_request_output_data(db_conn: postgresDBModule.DBConnection, user: str, start_time: datetime, end_time: datetime) -> models.OneuserWholeTestSets:
-    SELECT_QUERY = """SELECT mobile_time, index, building_name
+def get_whole_request_data(db_conn: postgresDBModule.DBConnection, user: str, start_time: datetime, end_time: datetime) -> list:
+    SELECT_QUERY = """SELECT mobile_time, index, level_name
                     FROM request_outputs
                     WHERE mobile_time >= %s AND mobile_time < %s
                     AND user_id = %s
@@ -155,9 +155,9 @@ def get_whole_request_output_data(db_conn: postgresDBModule.DBConnection, user: 
         db_conn.put_db_connection(conn)
 
     if len(total_mobile_results) == 0:
-        return  models.OneuserWholeTestSets()
-    
-    return divide_test_sets(total_mobile_results, user)
+        return  []
+
+    return total_mobile_results
 
 def divide_test_sets(total_mobile_results: list, user: str) -> models.OneuserWholeTestSets:
     test = models.TestSet()
@@ -174,22 +174,38 @@ def divide_test_sets(total_mobile_results: list, user: str) -> models.OneuserWho
             prev_db_idx = data[1]
             continue
 
-        if data[1] < prev_db_idx:
+        if next_test_set == True and data[2] != "":
+            test.start_time = data[0]
+            next_test_set = False
+            prev_db_idx = data[1]
+            continue
+
+        # testset end case 1: 인덱스가 떨어지는 경우 case 2: level_name이 공란인 경우(실외로 나간 경우)
+        if (first_time_set == True and data[1] < prev_db_idx)  or (first_time_set == True and data[2] == ""):
             test.end_time = total_mobile_results[idx-1][0]
             if test.start_time != test.end_time:
                 whole_testsets.test_sets.append(test)
+                test = models.TestSet(
+                    start_time=data[0]
+                )
+                next_test_set = True
+                prev_db_idx = data[1]
+                continue
+
             test = models.TestSet(
                 start_time=data[0]
             )
-            next_test_set = True
-        
-        prev_db_idx = data[1]
+            first_time_set = True
+            prev_db_idx = data[1]
+            continue
 
         if idx == len(total_mobile_results)-1:
             if first_time_set or next_test_set:
                 test.end_time = data[0]
                 if test.start_time != test.end_time:
                     whole_testsets.test_sets.append(test)
+
+        prev_db_idx = data[1]
 
     return whole_testsets
 
@@ -206,5 +222,8 @@ def get_whole_calc_time(db_conn: postgresDBModule.DBConnection, start_time: date
         raise Exception (f"error while counting datas : {error}")
     finally:
         db_conn.put_db_connection(conn)
-    
+
+    if len(whole_calc_times) == 0:
+        return  ()
+
     return whole_calc_times
