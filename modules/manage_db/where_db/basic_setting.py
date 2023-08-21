@@ -227,3 +227,67 @@ def get_whole_calc_time(db_conn: postgresDBModule.DBConnection, start_time: date
         return  ()
 
     return whole_calc_times
+
+def get_mobile_results(db_conn: postgresDBModule.DBConnection, sector_id: int, start: datetime, end: datetime, user_id: str) -> list[models.CoordinatesWithIsindoor]:
+    SELECT_QUERY = """SELECT x, y, is_indoor, mobile_time, index, phase FROM mobile_results
+                    WHERE sector_id = %s AND user_id = %s
+                    AND mobile_time >= %s AND mobile_time <= %s
+                    AND velocity != 0
+                    ORDER BY mobile_time"""
+    
+    candidate_mr: list[models.CoordinatesWithIsindoor] = []
+    conn = db_conn.get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(SELECT_QUERY, (sector_id, user_id, start, end, ))
+            db_whole_coords = cur.fetchall()
+    except Exception as error:
+        raise Exception (f"error while reading tables: {error}")
+    finally:
+        db_conn.put_db_connection(conn)
+
+    for coord in db_whole_coords:
+        candidate_mr.append(models.CoordinatesWithIsindoor(x= coord[0], y=coord[1], is_indoor=coord[2], mobile_time=coord[3], index=coord[4], phase=coord[5]))
+
+    return candidate_mr
+
+def filter_indoor_with_mobile_results(db_conn: postgresDBModule.DBConnection, user_id: str, start: datetime, end: datetime) -> models.OneuserWholeTestSets:
+    second_filtered_testset: models.OneuserWholeTestSets = models.OneuserWholeTestSets()
+    candidate_mr = get_mobile_results(db_conn, 6, start, end, user_id)
+    filtered_testsets = filter_indoor(candidate_mr)
+
+    for idx, f_test in enumerate(filtered_testsets):
+        print(f'filtered test set{idx}: start_time: {f_test[0].mobile_time} end_time: {f_test[-1].mobile_time}' )
+        second_filtered_testset.test_sets.append(f_test)
+    print('total testsets: ', len(filtered_testsets))
+    print()
+
+    second_filtered_testset.user_id = user_id
+    return second_filtered_testset
+
+def filter_indoor(candidate_mr: list[models.CoordinatesWithIsindoor]):
+    filtered_testsets = []
+    one_test: list[models.CoordinatesWithIsindoor] = []
+    get_start = False
+    prev_idx = 0
+    for idx, mobile_result in enumerate(candidate_mr):
+        if idx == 0:
+            prev_idx = mobile_result.index
+
+        if (mobile_result.is_indoor == False and get_start == True) or (mobile_result.index < prev_idx):
+            filtered_testsets.append(one_test)
+            one_test = []
+            get_start = False
+            prev_idx = mobile_result.index
+            continue
+        if mobile_result.is_indoor == False:
+            prev_idx = mobile_result.index
+            continue
+        one_test.append(mobile_result)
+        get_start = True
+        prev_idx = mobile_result.index
+
+        if idx == len(candidate_mr)-1 and get_start == True:
+            filtered_testsets.append(one_test)
+
+    return filtered_testsets
